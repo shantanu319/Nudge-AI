@@ -3,18 +3,12 @@
   "name": "Productivity Nudge",
   "version": "1.0",
   "description": "Takes periodic screenshots, analyzes them via the Google Gemini API, and nudges you if you're unproductive.",
-  "permissions": [
-    "activeTab",
-    "storage",
-    "notifications",
-    "scripting",
-    "tabs"
-  ],
+  "permissions": ["activeTab", "storage", "notifications", "scripting", "tabs"],
   "background": {
     "service_worker": "background.js"
   },
   "action": {
-    "default_popup": "index.html",
+    "default_popup": "src/index.html",
     "default_title": "Productivity Nudge",
     "default_icon": {
       "16": "icon16.png",
@@ -27,8 +21,5 @@
     "48": "icon48.png",
     "128": "icon128.png"
   },
-  "host_permissions": [
-    "http://localhost:3000/*",
-    "http://localhost:3001/*"
-  ]
+  "host_permissions": ["http://localhost:3000/*", "http://localhost:3001/*"]
 }

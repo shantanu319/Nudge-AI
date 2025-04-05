@@ -1,96 +1,91 @@
-import { ArcElement, Chart as ChartJS, Legend, Tooltip } from 'chart.js';
 import React, { useEffect, useState } from 'react';
 import { Pie } from 'react-chartjs-2';
+import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
+
+// Import your TaskParasite component
+import TaskParasite from './TaskParasite';
+
+// Import the Block component
 import Block from './Block';
 
-// Register Chart.js components
 ChartJS.register(ArcElement, Tooltip, Legend);
 
 const Popup = () => {
-  // ---------- State Variables ----------
-  // Productivity stats: { productive, unproductive }
+  /********************************************************
+   * 1) STATE VARIABLES
+   ********************************************************/
+  // Productivity Stats
   const [stats, setStats] = useState({ productive: 0, unproductive: 0 });
 
-  // Settings: { interval, threshold }
-  const [settings, setSettings] = useState({
-    interval: 5,
-    threshold: 50,
-  });
-
-  // Active state: true/false
-  const [isActive, setIsActive] = useState(true);
-
-  // Domain usage: { "www.google.com": msSpent, ... }
+  // Real-Time Domain Usage
   const [domainUsage, setDomainUsage] = useState({});
 
-  // ---------- Effects: On Mount, load from storage, attach listeners ----------
+  // Extension settings (interval, threshold)
+  const [settings, setSettings] = useState({
+    interval: 5,   // minutes
+    threshold: 50  // %
+  });
+
+  // Whether extension is active or paused
+  const [isActive, setIsActive] = useState(true);
+
+  /********************************************************
+   * 2) LOAD FROM STORAGE ON MOUNT + LISTEN FOR CHANGES
+   ********************************************************/
   useEffect(() => {
-    // 1) Get initial data from storage
     chrome.storage.local.get(
-      ['productivityStats', 'settings', 'isActive', 'timeSpent'],
-      (result) => {
-        if (result.productivityStats) {
-          setStats(result.productivityStats);
-        }
-        if (result.settings) {
-          setSettings(result.settings);
-        }
-        if (result.isActive !== undefined) {
-          setIsActive(result.isActive);
-        }
-        if (result.timeSpent) {
-          setDomainUsage(result.timeSpent);
-        }
+      ['productivityStats', 'timeSpent', 'settings', 'isActive'],
+      (res) => {
+        if (res.productivityStats) setStats(res.productivityStats);
+        if (res.timeSpent) setDomainUsage(res.timeSpent);
+        if (res.settings) setSettings(res.settings);
+        if (res.isActive !== undefined) setIsActive(res.isActive);
       }
     );
 
-    // 2) Listen for ANY changes in local storage
+    // Listen for changes in storage
     const handleStorageChange = (changes, areaName) => {
       if (areaName === 'local') {
-        // If productivityStats changed
         if (changes.productivityStats) {
           setStats(changes.productivityStats.newValue);
         }
-        // If settings changed
-        if (changes.settings) {
-          setSettings(changes.settings.newValue);
-        }
-        // If isActive changed
-        if (changes.isActive) {
-          setIsActive(changes.isActive.newValue);
-        }
-        // If timeSpent changed
         if (changes.timeSpent) {
           setDomainUsage(changes.timeSpent.newValue);
         }
+        if (changes.settings) {
+          setSettings(changes.settings.newValue);
+        }
+        if (changes.isActive) {
+          setIsActive(changes.isActive.newValue);
+        }
       }
     };
-
     chrome.storage.onChanged.addListener(handleStorageChange);
 
-    // Cleanup listener on unmount
+    // Cleanup on unmount
     return () => {
       chrome.storage.onChanged.removeListener(handleStorageChange);
     };
   }, []);
 
-  // ---------- Handlers ----------
-  // Toggle active/inactive extension
+  /********************************************************
+   * 3) HANDLERS FOR SETTINGS / ACTIVE TOGGLING
+   ********************************************************/
+  // Toggle extension active/paused
   const toggleActive = () => {
-    const newActiveState = !isActive;
-    setIsActive(newActiveState);
-    chrome.storage.local.set({ isActive: newActiveState }, () => {
+    const newActive = !isActive;
+    setIsActive(newActive);
+    chrome.storage.local.set({ isActive: newActive }, () => {
       chrome.runtime.sendMessage({
         action: 'toggleActive',
-        isActive: newActiveState,
+        isActive: newActive,
       });
     });
   };
 
-  // Save updated settings
+  // Save new settings to storage + notify background
   const saveSettings = () => {
     chrome.storage.local.set({ settings }, () => {
-      // Notify background script
       chrome.runtime.sendMessage({
         action: 'updateSettings',
         settings,
@@ -98,14 +93,16 @@ const Popup = () => {
     });
   };
 
-  // Reset the productive/unproductive counters
+  // Reset the “productive vs. unproductive” counters
   const resetStats = () => {
     const resetValue = { productive: 0, unproductive: 0 };
     setStats(resetValue);
     chrome.storage.local.set({ productivityStats: resetValue });
   };
 
-  // ---------- Derived Data ----------
+  /********************************************************
+   * 4) PIE CHART DATA
+   ********************************************************/
   const totalSessions = stats.productive + stats.unproductive;
   const chartData = {
     labels: ['Productive', 'Unproductive'],
@@ -119,87 +116,53 @@ const Popup = () => {
     ],
   };
 
-  // ---------- Render ----------
+  /********************************************************
+   * 5) RENDER
+   ********************************************************/
   return (
-    <div style={{ minWidth: '300px', fontFamily: 'sans-serif', padding: '1rem' }}>
+    <div style={{ minWidth: '320px', padding: '1rem', fontFamily: 'sans-serif' }}>
       <h2>Productivity Nudge</h2>
 
-      {/* Active / Pause Button */}
+      {/* Status Toggle */}
       <div style={{ marginBottom: '1rem' }}>
-        <span><strong>Status:</strong> {isActive ? 'Active' : 'Paused'}</span>{' '}
+        <strong>Status:</strong> {isActive ? 'Active' : 'Paused'}{' '}
         <button onClick={toggleActive}>
           {isActive ? 'Pause' : 'Resume'}
         </button>
       </div>
 
-      {/* Productive vs. Unproductive Pie */}
-      <div>
-        <h3>Activity Summary</h3>
-        {totalSessions > 0 ? (
-          <>
-            <div style={{ width: '200px', margin: '0 auto' }}>
-              <Pie data={chartData} />
-            </div>
-            <p>Total Sessions: {totalSessions}</p>
-            <p>
-              Productive: {stats.productive} (
-              {Math.round((stats.productive / totalSessions) * 100)}%)
-            </p>
-            <p>
-              Unproductive: {stats.unproductive} (
-              {Math.round((stats.unproductive / totalSessions) * 100)}%)
-            </p>
-            <button onClick={resetStats}>Reset Stats</button>
-          </>
-        ) : (
-          <p>No activity data yet.</p>
-        )}
-      </div>
+      {/* TASKS */}
+      <h3>Tasks:</h3>
+      <TaskParasite />
 
-      {/* Settings Section */}
-      <div style={{ marginTop: '1rem' }}>
-        <h3>Settings</h3>
-        <div style={{ margin: '0.5rem 0' }}>
-          <label htmlFor="interval">Check Interval (minutes): </label>
-          <select
-            id="interval"
-            value={settings.interval}
-            onChange={(e) =>
-              setSettings({ ...settings, interval: Number(e.target.value) })
-            }
-          >
-            <option value={1}>1</option>
-            <option value={3}>3</option>
-            <option value={5}>5</option>
-            <option value={10}>10</option>
-            <option value={15}>15</option>
-            <option value={30}>30</option>
-          </select>
-        </div>
-        <div style={{ margin: '0.5rem 0' }}>
-          <label htmlFor="threshold">Productivity Threshold (%): </label>
-          <input
-            type="range"
-            id="threshold"
-            min="10"
-            max="90"
-            step="5"
-            value={settings.threshold}
-            onChange={(e) =>
-              setSettings({ ...settings, threshold: Number(e.target.value) })
-            }
-          />
-          <span>{' '}{settings.threshold}%</span>
-        </div>
-        <button onClick={saveSettings}>Save Settings</button>
-      </div>
+      {/* PRODUCTIVITY CHART */}
+      {totalSessions > 0 ? (
+        <>
+          <div style={{ width: '200px', margin: '0 auto' }}>
+            <Pie data={chartData} />
+          </div>
+          <p>Total Sessions: {totalSessions}</p>
+          <p>
+            Productive: {stats.productive} (
+            {Math.round((stats.productive / totalSessions) * 100)}%)
+          </p>
+          <p>
+            Unproductive: {stats.unproductive} (
+            {Math.round((stats.unproductive / totalSessions) * 100)}%)
+          </p>
+          <button onClick={resetStats}>Reset Stats</button>
+        </>
+      ) : (
+        <p>No activity data yet.</p>
+      )}
 
+      {/* REAL-TIME DOMAIN USAGE */}
       <div style={{ marginTop: '1rem' }}>
         <h3>Real-Time Domain Usage</h3>
         {Object.keys(domainUsage).length === 0 ? (
           <p>No domains tracked yet.</p>
         ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse' }} border="1">
+          <table style={{ width: '100%', borderCollapse: 'collapse' }} border={1}>
             <thead>
               <tr>
                 <th>Domain</th>
@@ -221,8 +184,46 @@ const Popup = () => {
         )}
       </div>
 
-      <div >
-        <h3>Web Blocking</h3>
+      {/* SETTINGS */}
+      <div style={{ marginTop: '1rem' }}>
+        <h3>Settings</h3>
+        <div style={{ margin: '0.5rem 0' }}>
+          <label>Check Interval (minutes): </label>
+          <select
+            value={settings.interval}
+            onChange={(e) =>
+              setSettings({ ...settings, interval: Number(e.target.value) })
+            }
+          >
+            <option value={1}>1</option>
+            <option value={3}>3</option>
+            <option value={5}>5</option>
+            <option value={10}>10</option>
+            <option value={15}>15</option>
+            <option value={30}>30</option>
+          </select>
+        </div>
+
+        <div style={{ margin: '0.5rem 0' }}>
+          <label>Productivity Threshold (%): </label>
+          <input
+            type="range"
+            min={10}
+            max={90}
+            step={5}
+            value={settings.threshold}
+            onChange={(e) =>
+              setSettings({ ...settings, threshold: Number(e.target.value) })
+            }
+          />
+          <span> {settings.threshold}%</span>
+        </div>
+        <button onClick={saveSettings}>Save Settings</button>
+      </div>
+
+      {/* WEBSITE BLOCKING */}
+      <div style={{ marginTop: '1rem' }}>
+        <h3>Block Distractions</h3>
         <Block />
       </div>
     </div>

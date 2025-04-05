@@ -9,7 +9,9 @@
     "notifications",
     "scripting",
     "tabs",
-    "declarativeNetRequest"
+    "declarativeNetRequest", 
+    "declarativeNetRequestWithHostAccess"
+
   ],
   "background": {
     "service_worker": "background.js"

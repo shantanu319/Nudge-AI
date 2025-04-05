@@ -28,7 +28,8 @@ if (!fs.existsSync(logsDir)) {
 
 // Google Gemini API endpoint
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-vision:generateContent';
-const API_KEY = process.env.GEMINI_API_KEY;
+// Add your API key directly here
+const API_KEY = 'AIzaSyDIJmvCa8bkonKAWrgodywFa4INAWMADwM'; // Replace with your actual API key
 
 // Helper function to log data for debugging
 function logData(data, fileName) {

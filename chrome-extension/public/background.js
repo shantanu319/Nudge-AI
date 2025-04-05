@@ -1,9 +1,6 @@
 let currentRules = [];
-
-
-
 let settings = {
-  interval: 5,  // screenshot interval, in minutes
+  interval: 1,  // screenshot interval, in minutes
   threshold: 50 // unproductive threshold (%)
 };
 let isActive = true;
@@ -179,6 +176,28 @@ async function captureAndAnalyze() {
             threshold: settings.threshold
           })
         });
+        
+        if (!response.ok) {
+          if (response.status === 401 || response.status === 403) {
+            // Authentication error - token might be expired
+            console.error('Authentication error:', response.status);
+            chrome.storage.local.remove('auth0_token', () => {
+              console.log('Expired token removed');
+            });
+            chrome.notifications.create('', {
+              title: 'Authentication Error',
+              message: 'Please log in again to continue using Productivity Nudge',
+              iconUrl: 'icon48.png',
+              type: 'basic'
+            });
+            return;
+          }
+          
+          // Handle other API errors
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(`API error: ${response.status} - ${errorData.error || 'Unknown error'}`);
+        }
+        
         const result = await response.json();
 
         // Update “productive/unproductive” stats

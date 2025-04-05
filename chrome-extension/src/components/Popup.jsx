@@ -1,6 +1,7 @@
 import { ArcElement, Chart as ChartJS, Legend, Tooltip } from 'chart.js';
 import React, { useEffect, useState } from 'react';
 import { Pie } from 'react-chartjs-2';
+import Block from './Block';
 
 // Register Chart.js components
 ChartJS.register(ArcElement, Tooltip, Legend);
@@ -138,9 +139,9 @@ const Popup = () => {
         <button onClick={saveSettings}>Save Settings</button>
       </div>
 
-      <div className="web-blocking-container">
+      <div >
         <h3>Web Blocking</h3>
-        {/* <Block /> */}
+        <Block />
       </div>
 
     </div>

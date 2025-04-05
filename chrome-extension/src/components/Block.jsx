@@ -1,40 +1,74 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 
 const Block = () => {
-    const blockDocs = () => {
-        const now = new Date().getTime();
-        const unblockTime = now + 60 * 1000; // 1 minute from now
-        chrome.storage.local.set({ docsBlockUntil: unblockTime }, () => {
-            console.log('Docs blocked for 1 minute');
+    const [blockList, setBlockList] = useState([]);
+    const [newUrl, setNewUrl] = useState('');
+
+    // Load saved blocklist
+    useEffect(() => {
+        chrome.storage.local.get(['blockedSites'], (result) => {
+            if (result.blockedSites) {
+                setBlockList(result.blockedSites);
+            }
         });
+    }, []);
 
-        chrome.declarativeNetRequest.updateDynamicRules(
-            {
-                addRules: [
-                    {
-                        id: 1,
-                        priority: 1,
-                        action: { type: 'block' },
-                        condition: { urlFilter: 'docs.google.com', resourceTypes: ['main_frame'] },
-                    },
-                ],
-                removeRuleIds: [1],
-            },
-            () => console.log('Blocking rule applied')
-        );
+    const updateBlockRules = () => {
+        // Generate unique rule IDs
+        const rules = blockList.map((url, index) => ({
+            id: index + 1,
+            priority: 1,
+            action: { type: 'block' },
+            condition: {
+                urlFilter: `||${url.replace(/https?:\/\//, '')}`,
+                resourceTypes: ['main_frame']
+            }
+        }));
 
-        setTimeout(() => {
-            chrome.declarativeNetRequest.updateDynamicRules(
-                { removeRuleIds: [1] },
-                () => console.log('Blocking rule removed')
-            );
-        }, 60 * 1000); // Remove block after 1 minute
+        chrome.runtime.sendMessage({
+            action: 'updateBlockedSites',
+            rules
+        });
     };
 
     return (
-        <Button onClick={blockDocs}>
-            Block docs for 1 Minute
-        </Button>
+        <div>
+            <div>
+                <input
+                    type="text"
+                    value={newUrl}
+                    onChange={(e) => setNewUrl(e.target.value)}
+                    placeholder="Enter website domain (e.g. facebook.com)"
+                />
+                <button onClick={() => {
+                    if (newUrl) {
+                        const updatedList = [...new Set([...blockList, newUrl])];
+                        setBlockList(updatedList);
+                        chrome.storage.local.set({ blockedSites: updatedList });
+                        setNewUrl('');
+                    }
+                }}>
+                    Add Site
+                </button>
+            </div>
+
+            <div>
+                {blockList.map((url) => (
+                    <div key={url}>
+                        {url}
+                        <button onClick={() => {
+                            const filtered = blockList.filter(u => u !== url);
+                            setBlockList(filtered);
+                            chrome.storage.local.set({ blockedSites: filtered });
+                        }}>Remove</button>
+                    </div>
+                ))}
+            </div>
+
+            <button onClick={updateBlockRules}>
+                Apply Blocking Rules
+            </button>
+        </div>
     );
 };
 

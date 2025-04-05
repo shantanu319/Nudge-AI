@@ -91,7 +91,7 @@ async function captureAndAnalyze() {
 
       // Send screenshot data to backend for analysis
       try {
-        const response = await fetch('http://localhost:3000/analyze', {
+        const response = await fetch('http://localhost:3001/analyze', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 

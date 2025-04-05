@@ -4,7 +4,7 @@ const Block = () => {
     const [blockList, setBlockList] = useState([]);
     const [newUrl, setNewUrl] = useState('');
 
-    // Load saved blocklist
+    // Load blocklist on mount
     useEffect(() => {
         chrome.storage.local.get(['blockedSites'], (result) => {
             if (result.blockedSites) {
@@ -13,8 +13,13 @@ const Block = () => {
         });
     }, []);
 
+    // Automatically update rules when blocklist changes
+    useEffect(() => {
+        updateBlockRules();
+        chrome.storage.local.set({ blockedSites: blockList });
+    }, [blockList]);
+
     const updateBlockRules = () => {
-        // Generate unique rule IDs
         const rules = blockList.map((url, index) => ({
             id: index + 1,
             priority: 1,
@@ -31,43 +36,43 @@ const Block = () => {
         });
     };
 
+    const handleAddUrl = (e) => {
+        e.preventDefault();
+        if (newUrl.trim()) {
+            setBlockList(prev => [...prev, newUrl.trim()]);
+            setNewUrl('');
+        }
+    };
+
+    const handleRemoveUrl = (urlToRemove) => {
+        setBlockList(prev => prev.filter(url => url !== urlToRemove));
+    };
+
     return (
-        <div>
-            <div>
+        <div style={{ marginTop: '1rem' }}>
+            <form onSubmit={handleAddUrl}>
                 <input
                     type="text"
                     value={newUrl}
                     onChange={(e) => setNewUrl(e.target.value)}
-                    placeholder="Enter website domain (e.g. facebook.com)"
+                    placeholder="Enter domain to block"
                 />
-                <button onClick={() => {
-                    if (newUrl) {
-                        const updatedList = [...new Set([...blockList, newUrl])];
-                        setBlockList(updatedList);
-                        chrome.storage.local.set({ blockedSites: updatedList });
-                        setNewUrl('');
-                    }
-                }}>
-                    Add Site
-                </button>
-            </div>
+                <button type="submit">Add</button>
+            </form>
 
-            <div>
+            <ul style={{ listStyle: 'none', padding: 0 }}>
                 {blockList.map((url) => (
-                    <div key={url}>
-                        {url}
-                        <button onClick={() => {
-                            const filtered = blockList.filter(u => u !== url);
-                            setBlockList(filtered);
-                            chrome.storage.local.set({ blockedSites: filtered });
-                        }}>Remove</button>
-                    </div>
+                    <li key={url} style={{ margin: '0.5rem 0', display: 'flex', alignItems: 'center' }}>
+                        <span style={{ flexGrow: 1 }}>{url}</span>
+                        <button
+                            onClick={() => handleRemoveUrl(url)}
+                            style={{ marginLeft: '0.5rem', cursor: 'pointer' }}
+                        >
+                            ×
+                        </button>
+                    </li>
                 ))}
-            </div>
-
-            <button onClick={updateBlockRules}>
-                Apply Blocking Rules
-            </button>
+            </ul>
         </div>
     );
 };

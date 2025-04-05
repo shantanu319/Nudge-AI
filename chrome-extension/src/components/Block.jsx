@@ -5,35 +5,53 @@ import React, { useEffect, useState } from 'react';
 ChartJS.register(ArcElement, Tooltip, Legend);
 
 const Block = () => {
-    const [blockList, setBlockList] = useState([]);
-    const [newUrl, setNewUrl] = useState('');
+  const [blockList, setBlockList] = useState([]);
+  const [newUrl, setNewUrl] = useState('');
 
-    // Load saved blocklist
-    useEffect(() => {
-        chrome.storage.local.get(['blockedSites'], (result) => {
-            if (result.blockedSites) {
-                setBlockList(result.blockedSites);
-            }
-        });
-    }, []);
+  // Load blocklist on mount
+  useEffect(() => {
+    chrome.storage.local.get(['blockedSites'], (result) => {
+      if (result.blockedSites) {
+        setBlockList(result.blockedSites);
+      }
+    });
+  }, []);
 
-    const updateBlockRules = () => {
-        // Generate unique rule IDs
-        const rules = blockList.map((url, index) => ({
-            id: index + 1,
-            priority: 1,
-            action: { type: 'block' },
-            condition: {
-                urlFilter: `||${url.replace(/https?:\/\//, '')}`,
-                resourceTypes: ['main_frame']
-            }
-        }));
+  // Automatically update rules when blocklist changes
+  useEffect(() => {
+    updateBlockRules();
+    chrome.storage.local.set({ blockedSites: blockList });
+  }, [blockList]);
 
-        chrome.runtime.sendMessage({
-            action: 'updateBlockedSites',
-            rules
-        });
-    };
+  const updateBlockRules = () => {
+    const rules = blockList.map((url, index) => ({
+      id: index + 1,
+      priority: 1,
+      action: { type: 'block' },
+      condition: {
+        urlFilter: `||${url.replace(/https?:\/\//, '')}`,
+        resourceTypes: ['main_frame']
+      }
+    }));
+
+    chrome.runtime.sendMessage({
+      action: 'updateBlockedSites',
+      rules
+    });
+  };
+
+  const handleAddUrl = (e) => {
+    e.preventDefault();
+    const trimmedUrl = newUrl.trim();
+    if (trimmedUrl) {
+      setBlockList((prev) => [...prev, trimmedUrl]);
+      setNewUrl('');
+    }
+  };
+
+  const handleRemoveUrl = (urlToRemove) => {
+    setBlockList((prev) => prev.filter((url) => url !== urlToRemove));
+  };
 
     return (
         <div>

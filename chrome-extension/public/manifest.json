@@ -9,8 +9,9 @@
     "notifications",
     "scripting",
     "tabs",
-    "declarativeNetRequest",
-    "identity"
+    "declarativeNetRequest", 
+    "declarativeNetRequestWithHostAccess"
+
   ],
   "background": {
     "service_worker": "background.js"
@@ -19,9 +20,9 @@
     "default_popup": "src/index.html",
     "default_title": "Productivity Nudge",
     "default_icon": {
-      "16": "icon16.png",
-      "48": "icon48.png",
-      "128": "icon128.png"
+      "16": "icon.jpg",
+      "48": "icon.jpg",
+      "128": "icon.jpg"
     }
   },
   "icons": {

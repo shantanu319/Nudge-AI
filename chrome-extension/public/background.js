@@ -142,28 +142,27 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 async function captureAndAnalyze() {
-  if (!isActive) return;
+  if (!isActive) {
+    console.log('Extension is inactive. Skipping capture and analysis.');
+    return;
+  }
 
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    console.log('Active tab:', tab);
 
-    // Skip blocked sites
-    if (tab.url && currentRules.some(rule =>
-      new URL(tab.url).hostname.includes(
-        rule.condition.urlFilter.replace('||', '')
-      )
-    )) {
-      console.log('Skipping analysis on blocked site');
+    if (!tab || tab.url.startsWith('chrome://')) {
+      console.log('No valid tab or tab is a Chrome internal page. Skipping.');
       return;
     }
-
-    if (!tab || tab.url.startsWith('chrome://')) return;
 
     chrome.tabs.captureVisibleTab(null, { format: 'jpeg', quality: 50 }, async (dataUrl) => {
       if (chrome.runtime.lastError) {
         console.error('Screenshot error:', chrome.runtime.lastError);
         return;
       }
+
+      console.log('Screenshot captured successfully.');
 
       try {
         const response = await fetch('http://localhost:3001/analyze', {
@@ -173,8 +172,8 @@ async function captureAndAnalyze() {
             image: dataUrl,
             url: tab.url,
             title: tab.title,
-            threshold: settings.threshold
-          })
+            threshold: settings.threshold,
+          }),
         });
         
         if (!response.ok) {
@@ -198,23 +197,45 @@ async function captureAndAnalyze() {
           throw new Error(`API error: ${response.status} - ${errorData.error || 'Unknown error'}`);
         }
         
-        const result = await response.json();
 
-        // Update “productive/unproductive” stats
+        console.log('Response received from backend:', response);
+
+        if (!response.ok) {
+          console.error('Backend returned an error:', response.status, response.statusText);
+          return;
+        }
+
+        const result = await response.json();
+        console.log('Analysis result:', result);
+
+        // Update productivity stats
         chrome.storage.local.get(['productivityStats'], (data) => {
           const stats = data.productivityStats || { productive: 0, unproductive: 0 };
-          result.unproductive ? stats.unproductive++ : stats.productive++;
-
           if (result.unproductive) {
             stats.unproductive++;
-            // Optionally notify the user
-            chrome.notifications.create('', {
-              title: 'Time to refocus!',
-              message: result.message || 'Consider switching tasks',
-              iconUrl: 'icon48.png',
-              type: 'basic'
-            });
+            console.log('Unproductive site detected. Updating stats.');
+          } else {
+            stats.productive++;
+            console.log('Productive site detected. Updating stats.');
           }
+
+          if (result.unproductive) {
+            // Send notification
+            chrome.notifications.create('', {
+              title: 'Low Productivity Detected',
+              message: result.message || 'Consider switching to a more productive task.',
+              iconUrl: 'icon.jpg',
+              type: 'basic',
+            }, (notificationId) => {
+              if (chrome.runtime.lastError) {
+                console.error('Notification error:', chrome.runtime.lastError.message);
+              } else {
+                console.log('Notification created with ID:', notificationId);
+              }
+            });
+            console.log('Notification sent for unproductive site.');
+          }
+
           chrome.storage.local.set({ productivityStats: stats });
         });
       } catch (err) {

@@ -232,99 +232,94 @@
 // export default Popup;
 
 
-import { ArcElement, Chart as ChartJS, Legend, Tooltip } from 'chart.js';
 import React, { useEffect, useState } from 'react';
 import { Pie } from 'react-chartjs-2';
+import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
+
+// Import your TaskParasite component
+import TaskParasite from './TaskParasite';
+
+// Import the Block component
 import Block from './Block';
 
-// Register Chart.js components
 ChartJS.register(ArcElement, Tooltip, Legend);
 
 const Popup = () => {
-  // ---------- State Variables ----------
-  // Productivity stats: { productive, unproductive }
+  /********************************************************
+   * 1) STATE VARIABLES
+   ********************************************************/
+  // Productivity Stats
   const [stats, setStats] = useState({ productive: 0, unproductive: 0 });
 
-  // Settings: { interval, threshold }
-  const [settings, setSettings] = useState({
-    interval: 5,
-    threshold: 50,
-  });
-
-  // Active state: true/false
-  const [isActive, setIsActive] = useState(true);
-
-  // Domain usage: { "www.google.com": msSpent, ... }
+  // Real-Time Domain Usage
   const [domainUsage, setDomainUsage] = useState({});
 
-  // ---------- Effects: On Mount, load from storage, attach listeners ----------
+  // Extension settings (interval, threshold)
+  const [settings, setSettings] = useState({
+    interval: 5,   // minutes
+    threshold: 50  // %
+  });
+
+  // Whether extension is active or paused
+  const [isActive, setIsActive] = useState(true);
+
+  /********************************************************
+   * 2) LOAD FROM STORAGE ON MOUNT + LISTEN FOR CHANGES
+   ********************************************************/
   useEffect(() => {
-    // 1) Get initial data from storage
     chrome.storage.local.get(
-      ['productivityStats', 'settings', 'isActive', 'timeSpent'],
-      (result) => {
-        if (result.productivityStats) {
-          setStats(result.productivityStats);
-        }
-        if (result.settings) {
-          setSettings(result.settings);
-        }
-        if (result.isActive !== undefined) {
-          setIsActive(result.isActive);
-        }
-        if (result.timeSpent) {
-          setDomainUsage(result.timeSpent);
-        }
+      ['productivityStats', 'timeSpent', 'settings', 'isActive'],
+      (res) => {
+        if (res.productivityStats) setStats(res.productivityStats);
+        if (res.timeSpent) setDomainUsage(res.timeSpent);
+        if (res.settings) setSettings(res.settings);
+        if (res.isActive !== undefined) setIsActive(res.isActive);
       }
     );
 
-    // 2) Listen for ANY changes in local storage
+    // Listen for changes in storage
     const handleStorageChange = (changes, areaName) => {
       if (areaName === 'local') {
-        // If productivityStats changed
         if (changes.productivityStats) {
           setStats(changes.productivityStats.newValue);
         }
-        // If settings changed
-        if (changes.settings) {
-          setSettings(changes.settings.newValue);
-        }
-        // If isActive changed
-        if (changes.isActive) {
-          setIsActive(changes.isActive.newValue);
-        }
-        // If timeSpent changed
         if (changes.timeSpent) {
           setDomainUsage(changes.timeSpent.newValue);
         }
+        if (changes.settings) {
+          setSettings(changes.settings.newValue);
+        }
+        if (changes.isActive) {
+          setIsActive(changes.isActive.newValue);
+        }
       }
     };
-
     chrome.storage.onChanged.addListener(handleStorageChange);
 
-    // Cleanup listener on unmount
+    // Cleanup on unmount
     return () => {
       chrome.storage.onChanged.removeListener(handleStorageChange);
     };
   }, []);
 
-  // ---------- Handlers ----------
-  // Toggle active/inactive extension
+  /********************************************************
+   * 3) HANDLERS FOR SETTINGS / ACTIVE TOGGLING
+   ********************************************************/
+  // Toggle extension active/paused
   const toggleActive = () => {
-    const newActiveState = !isActive;
-    setIsActive(newActiveState);
-    chrome.storage.local.set({ isActive: newActiveState }, () => {
+    const newActive = !isActive;
+    setIsActive(newActive);
+    chrome.storage.local.set({ isActive: newActive }, () => {
       chrome.runtime.sendMessage({
         action: 'toggleActive',
-        isActive: newActiveState,
+        isActive: newActive,
       });
     });
   };
 
-  // Save updated settings
+  // Save new settings to storage + notify background
   const saveSettings = () => {
     chrome.storage.local.set({ settings }, () => {
-      // Notify background script
       chrome.runtime.sendMessage({
         action: 'updateSettings',
         settings,
@@ -332,14 +327,16 @@ const Popup = () => {
     });
   };
 
-  // Reset the productive/unproductive counters
+  // Reset the “productive vs. unproductive” counters
   const resetStats = () => {
     const resetValue = { productive: 0, unproductive: 0 };
     setStats(resetValue);
     chrome.storage.local.set({ productivityStats: resetValue });
   };
 
-  // ---------- Derived Data ----------
+  /********************************************************
+   * 4) PIE CHART DATA
+   ********************************************************/
   const totalSessions = stats.productive + stats.unproductive;
   const chartData = {
     labels: ['Productive', 'Unproductive'],
@@ -497,7 +494,7 @@ const Popup = () => {
 
         {/* Web Blocking */}
         <div className="glass-card blocking-card">
-          <h3 className="section-title">Web Blocking</h3>
+          <h3 className="section-title">Block Distractions</h3>
           <Block />
         </div>
       </div>

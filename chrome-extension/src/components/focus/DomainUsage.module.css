@@ -4,64 +4,248 @@
   background: var(--color-bg-tertiary);
   border-radius: 8px;
   padding: 16px;
+  margin-top: 16px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
 }
 
 .title {
-  color: rgba(255, 255, 255, 0.9);
+  color: var(--color-text-primary);
   font-size: 1.125rem;
-  margin-bottom: 1rem;
+  font-weight: 500;
+  margin: 0;
+}
+
+.viewToggle {
+  display: flex;
+  gap: 8px;
+}
+
+.toggleButton {
+  padding: 4px 12px;
+  border-radius: 4px;
+  border: 1px solid var(--color-border-light);
+  background: var(--color-bg-secondary);
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.toggleButton.active {
+  background: var(--color-primary);
+  color: white;
+  border-color: var(--color-primary);
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.categorySection {
+  background: var(--color-bg-secondary);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.categoryHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.categoryTime {
+  color: var(--color-text-primary);
+  font-size: 14px;
   font-weight: 500;
 }
 
-.tableContainer {
-  background: var(--color-bg-secondary);
-  border-radius: 8px;
-  padding: 0.75rem;
-  border: 1px solid var(--color-border-light);
+.timeBarContainer {
+  height: 8px;
+  background: var(--color-bg-tertiary);
+  border-radius: 4px;
+  overflow: hidden;
+  margin: 8px 0;
 }
 
-.table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 12px;
+.timeBar {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.5s ease;
 }
 
-.table th {
-  text-align: left;
+.domainList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.domainItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   padding: 8px;
-  font-weight: 600;
-  color: var(--color-text-secondary);
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  background: var(--color-bg-tertiary);
+  border-radius: 6px;
 }
 
-.table td {
-  padding: 8px;
-  border-top: 1px solid var(--color-border-light);
+.domainName {
+  color: var(--color-text-primary);
   font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 200px;
 }
 
-.domain {
+.domainTimeContainer {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.domainIcon {
+.domainTime {
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  font-family: monospace;
+}
+
+.timeIndicator {
+  position: relative;
   width: 16px;
   height: 16px;
-  color: var(--color-text-secondary);
 }
 
-.time {
-  font-family: monospace;
-  color: var(--color-text-primary);
+.indicatorDot {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
 }
 
-.percentage {
-  color: var(--color-text-secondary);
+.indicatorPulse {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 0.5;
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.5);
+    opacity: 0;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 0;
+  }
+}
+
+.timeIndicator.low .indicatorDot,
+.timeIndicator.low .indicatorPulse {
+  background: var(--color-success);
+}
+
+.timeIndicator.medium .indicatorDot,
+.timeIndicator.medium .indicatorPulse {
+  background: var(--color-warning);
+}
+
+.timeIndicator.high .indicatorDot,
+.timeIndicator.high .indicatorPulse {
+  background: var(--color-error);
+}
+
+.categoryBadge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 12px;
   font-size: 12px;
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+/* Category-specific styles */
+.streaming {
+  background: rgba(255, 0, 0, 0.1);
+  color: #ff4444;
+}
+
+.streaming .timeBar {
+  background: linear-gradient(90deg, #ff4444, #ff8888);
+}
+
+.gaming {
+  background: rgba(128, 0, 255, 0.1);
+  color: #8855ff;
+}
+
+.gaming .timeBar {
+  background: linear-gradient(90deg, #8855ff, #aa88ff);
+}
+
+.social_media {
+  background: rgba(0, 128, 255, 0.1);
+  color: #3399ff;
+}
+
+.social_media .timeBar {
+  background: linear-gradient(90deg, #3399ff, #66bbff);
+}
+
+.news_forums {
+  background: rgba(255, 128, 0, 0.1);
+  color: #ff8833;
+}
+
+.news_forums .timeBar {
+  background: linear-gradient(90deg, #ff8833, #ffaa66);
+}
+
+.shopping {
+  background: rgba(0, 255, 128, 0.1);
+  color: #33cc66;
+}
+
+.shopping .timeBar {
+  background: linear-gradient(90deg, #33cc66, #66dd88);
+}
+
+.productivity {
+  background: rgba(0, 255, 0, 0.1);
+  color: #44cc44;
+}
+
+.productivity .timeBar {
+  background: linear-gradient(90deg, #44cc44, #66ee66);
+}
+
+.other {
+  background: rgba(128, 128, 128, 0.1);
+  color: #888888;
+}
+
+.other .timeBar {
+  background: linear-gradient(90deg, #888888, #aaaaaa);
 }
 
 .noData {

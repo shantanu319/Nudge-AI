@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
+
 // Helper function to get priority color
 function getPriorityColor(priority) {
   if (priority === 'High') {
@@ -20,59 +21,101 @@ export default function TaskParasite() {
   const [editingTaskId, setEditingTaskId] = useState(null);
   const [editTitle, setEditTitle] = useState('');
   const [editPriority, setEditPriority] = useState('Medium');
-  const [editTime, setEditTime] = useState('');
+  const [currentFocus, setCurrentFocus] = useState(null);
 
-  // Load tasks from chrome storage when the component mounts
+
+  // Load tasks from Chrome storage on component mount
   useEffect(() => {
-    chrome.storage.local.get('tasks', (result) => {
-      if (result.tasks) {
-        setTasks(result.tasks); // Set tasks from storage if available
-      }
-    });
+    if (chrome && chrome.storage) {
+      chrome.storage.local.get(['parasiteTasks', 'currentFocusParasite'], (result) => {
+        if (result.parasiteTasks) {
+          setTasks(result.parasiteTasks);
+        }
+        if (result.currentFocusParasite) {
+          setCurrentFocus(result.currentFocusParasite);
+        }
+      });
+
+      // Listen for changes to tasks in storage
+      const handleStorageChange = (changes, areaName) => {
+        if (areaName === 'local') {
+          if (changes.parasiteTasks) {
+            setTasks(changes.parasiteTasks.newValue);
+          }
+          if (changes.currentFocusParasite) {
+            setCurrentFocus(changes.currentFocusParasite.newValue);
+          }
+        }
+      };
+
+      chrome.storage.onChanged.addListener(handleStorageChange);
+      return () => {
+        chrome.storage.onChanged.removeListener(handleStorageChange);
+      };
+    }
   }, []);
 
-  // Save tasks to chrome storage whenever the tasks change
-  useEffect(() => {
-    chrome.storage.local.set({ tasks });
-  }, [tasks]);
+
+  // Save tasks to Chrome storage and notify background script
+  const saveTasks = (updatedTasks) => {
+    if (chrome && chrome.storage) {
+      chrome.storage.local.set({ parasiteTasks: updatedTasks });
+      
+      // Notify background script about task changes for Gemini analysis
+      if (chrome && chrome.runtime) {
+        chrome.runtime.sendMessage({
+          action: 'updateParasiteTasks',
+          tasks: updatedTasks
+        });
+      }
+    }
+  };
+
+
+  // Save current focus task to Chrome storage
+  const saveCurrentFocus = (taskId) => {
+    if (chrome && chrome.storage) {
+      chrome.storage.local.set({ currentFocusParasite: taskId });
+      
+      // Notify background script about focus change
+      if (chrome && chrome.runtime) {
+        chrome.runtime.sendMessage({
+          action: 'updateCurrentFocusParasite',
+          currentFocus: taskId
+        });
+      }
+    }
+  };
+
 
   // Function to handle adding a new task
   const handleAddTask = () => {
     const trimmed = newTask.trim();
-    if (!trimmed) {
-      setErrorMessage("Task title cannot be empty.");
-      return;
+    if (trimmed) {
+      const newTaskObject = {
+        id: Date.now(),
+        title: trimmed,
+        priority: newPriority,
+        completed: false, // newly created tasks are incomplete
+      };
+      const updatedTasks = [...tasks, newTaskObject];
+      setTasks(updatedTasks);
+      saveTasks(updatedTasks);
+      setNewTask('');
     }
-
-    // Validate time
-    if (newTime && !/^\d+$/.test(newTime)) {
-      setErrorMessage("Please enter a valid positive number for Time Left.");
-      return;
-    }
-
-    let timeInSeconds = 0;
-    if (newTime) {
-      const minutes = parseInt(newTime);
-      timeInSeconds = minutes * 60;
-    }
-
-    const newTaskObject = {
-      id: Date.now(),
-      title: trimmed,
-      priority: newPriority,
-      timeLeft: timeInSeconds, // Store time in seconds
-      completed: false,
-    };
-
-    setTasks((prev) => [...prev, newTaskObject]);
-    setNewTask('');
-    setNewTime('');
-    setErrorMessage('');
   };
 
   // Function to mark task as completed (using slider toggle) and delete task
   const handleToggleComplete = (taskId) => {
-    setTasks((prev) => prev.filter((t) => t.id !== taskId)); // Remove task when checked
+    const updatedTasks = tasks.filter((t) => t.id !== taskId); // Remove task when checked
+    setTasks(updatedTasks);
+    saveTasks(updatedTasks);
+    
+    // If completed task was the current focus, clear the focus
+    if (currentFocus === taskId) {
+      setCurrentFocus(null);
+      saveCurrentFocus(null);
+    }
   };
 
   // Function to start editing a task
@@ -91,37 +134,17 @@ export default function TaskParasite() {
         : task
     );
     setTasks(updatedTasks);
+    saveTasks(updatedTasks);
     setEditingTaskId(null); // Close edit mode
   };
 
-  // Format time (seconds) into "mm:ss"
-  const formatTime = (timeInSeconds) => {
-    const minutes = Math.floor(timeInSeconds / 60);
-    const seconds = timeInSeconds % 60;
-    return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+
+  // Function to set focus on a task
+  const handleSetFocus = (taskId) => {
+    setCurrentFocus(currentFocus === taskId ? null : taskId);
+    saveCurrentFocus(currentFocus === taskId ? null : taskId);
   };
 
-  // Convert "mm:ss" string into seconds
-  const parseTime = (timeString) => {
-    const [minutes] = timeString.split(':').map((num) => parseInt(num));
-    return minutes * 60;
-  };
-
-  // Countdown logic to decrement time left
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setTasks((prevTasks) => {
-        return prevTasks.map((task) => {
-          if (task.timeLeft > 0) {
-            return { ...task, timeLeft: task.timeLeft - 1 };
-          }
-          return task;
-        });
-      });
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, []);
 
   const sortedTasks = [...tasks].sort((a, b) => {
     const priorityOrder = { High: 3, Medium: 2, Low: 1 };
@@ -186,11 +209,24 @@ export default function TaskParasite() {
         </button>
       </div>
 
-      {errorMessage && (
-        <div style={{ color: 'red', marginBottom: '15px' }}>
-          <strong>{errorMessage}</strong>
+
+      {/* Focus Task Info (if any) */}
+      {currentFocus && (
+        <div
+          style={{
+            backgroundColor: 'rgba(78, 42, 132, 0.2)',
+            padding: '10px',
+            marginBottom: '15px',
+            borderRadius: '8px',
+            border: '1px solid rgba(78, 42, 132, 0.5)'
+          }}
+        >
+          <p style={{ color: 'white', margin: 0 }}>
+            <strong>Currently Focusing On:</strong> {tasks.find(t => t.id === currentFocus)?.title}
+          </p>
         </div>
       )}
+
 
       {/* Task List */}
       {sortedTasks.map((task) => {
@@ -211,9 +247,9 @@ export default function TaskParasite() {
               border: '1px solid #fff',
               borderRadius: '8px',
               padding: '15px',
-              backgroundColor: 'rgba(255, 255, 255, 0.1)',
-              justifyContent: 'flex-start',
-              maxWidth: '450px',
+              backgroundColor: currentFocus === task.id ? 'rgba(78, 42, 132, 0.3)' : 'rgba(255, 255, 255, 0.1)',
+              justifyContent: 'space-between',
+              maxWidth: '400px',
               margin: '0 auto',
               height: '90px', // Fixed height to align text properly
             }}
@@ -245,6 +281,24 @@ export default function TaskParasite() {
                   : 'Time Left: Not specified'}
               </span>
             </div>
+
+
+            {/* Focus Button */}
+            <button
+              onClick={() => handleSetFocus(task.id)}
+              style={{
+                marginRight: '10px',
+                padding: '8px 16px',
+                backgroundColor: currentFocus === task.id ? '#8e5bd4' : '#4e2a84',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer',
+              }}
+            >
+              {currentFocus === task.id ? 'Unfocus' : 'Focus'}
+            </button>
+
 
             {/* Completion Toggle (Checkbox) */}
             <input

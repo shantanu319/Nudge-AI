@@ -1,57 +1,72 @@
 import { ArcElement, Chart as ChartJS, Legend, Tooltip } from 'chart.js';
 import React, { useEffect, useState } from 'react';
+import { blockWebsite } from '../../public/blockUtils.js';
 
 // Register Chart.js components
 ChartJS.register(ArcElement, Tooltip, Legend);
 
 const Block = () => {
-  const [blockList, setBlockList] = useState([]);
-  const [newUrl, setNewUrl] = useState('');
+    const [blockList, setBlockList] = useState([]);
+    const [newUrl, setNewUrl] = useState('');
 
-  // Load blocklist on mount
-  useEffect(() => {
-    chrome.storage.local.get(['blockedSites'], (result) => {
-      if (result.blockedSites) {
-        setBlockList(result.blockedSites);
-      }
-    });
-  }, []);
+    // Load blocklist on mount
+    useEffect(() => {
+        chrome.storage.local.get(['blockedSites'], (result) => {
+            if (result.blockedSites) {
+                setBlockList(result.blockedSites);
+            }
+        });
 
-  // Automatically update rules when blocklist changes
-  useEffect(() => {
-    updateBlockRules();
-    chrome.storage.local.set({ blockedSites: blockList });
-  }, [blockList]);
+        // Listen for block list updates from the service worker
+        const handleMessage = (message) => {
+            if (message.action === 'blockListUpdated') {
+                setBlockList(message.blockList);
+            }
+        };
 
-  const updateBlockRules = () => {
-    const rules = blockList.map((url, index) => ({
-      id: index + 1,
-      priority: 1,
-      action: { type: 'block' },
-      condition: {
-        urlFilter: `||${url.replace(/https?:\/\//, '')}`,
-        resourceTypes: ['main_frame']
-      }
-    }));
+        chrome.runtime.onMessage.addListener(handleMessage);
 
-    chrome.runtime.sendMessage({
-      action: 'updateBlockedSites',
-      rules
-    });
-  };
+        // Cleanup listener on unmount
+        return () => {
+            chrome.runtime.onMessage.removeListener(handleMessage);
+        };
+    }, []);
 
-  const handleAddUrl = (e) => {
-    e.preventDefault();
-    const trimmedUrl = newUrl.trim();
-    if (trimmedUrl) {
-      setBlockList((prev) => [...prev, trimmedUrl]);
-      setNewUrl('');
-    }
-  };
+    // Automatically update rules when blocklist changes
+    useEffect(() => {
+        updateBlockRules();
+        chrome.storage.local.set({ blockedSites: blockList });
+    }, [blockList]);
 
-  const handleRemoveUrl = (urlToRemove) => {
-    setBlockList((prev) => prev.filter((url) => url !== urlToRemove));
-  };
+    // Update block rules
+    const updateBlockRules = () => {
+        const rules = blockList.map((url, index) => ({
+            id: index + 1,
+            priority: 1,
+            action: { type: 'block' },
+            condition: {
+                urlFilter: `||${url.replace(/https?:\/\//, '')}`,
+                resourceTypes: ['main_frame'],
+            },
+        }));
+
+        chrome.runtime.sendMessage({
+            action: 'updateBlockedSites',
+            rules,
+        });
+    };
+
+    const handleAddUrl = (e) => {
+        e.preventDefault();
+        if (newUrl.trim()) {
+            blockWebsite(newUrl.trim()); // Use the helper function
+            setNewUrl('');
+        }
+    };
+
+    const handleRemoveUrl = (urlToRemove) => {
+        setBlockList((prev) => prev.filter((url) => url !== urlToRemove));
+    };
 
     return (
         <div>
@@ -66,7 +81,7 @@ const Block = () => {
                         onChange={(e) => setNewUrl(e.target.value)}
                         placeholder="Enter domain (e.g. facebook.com)"
                     />
-                    <button 
+                    <button
                         className="glass-button"
                         onClick={() => {
                             if (newUrl) {
@@ -96,7 +111,7 @@ const Block = () => {
                                 <tr key={url}>
                                     <td>{url}</td>
                                     <td>
-                                        <button 
+                                        <button
                                             className="glass-button"
                                             style={{ padding: '4px 8px', fontSize: '0.8rem' }}
                                             onClick={() => {
@@ -117,7 +132,7 @@ const Block = () => {
                 )}
             </div>
 
-            <button 
+            <button
                 className="glass-button save-button"
                 onClick={updateBlockRules}
                 style={{ marginTop: '15px' }}

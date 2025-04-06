@@ -7,14 +7,22 @@
     "activeTab",
     "storage",
     "notifications",
+    "windows",
     "scripting",
     "tabs",
     "declarativeNetRequest", 
     "declarativeNetRequestWithHostAccess"
 
   ],
+  "web_accessible_resources": [
+    {
+      "resources": ["icon.jpg"],
+      "matches": ["<all_urls>"]
+    }
+  ],
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "background.js",
+    "type": "module"
   },
   "action": {
     "default_popup": "src/index.html",

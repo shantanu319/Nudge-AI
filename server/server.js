@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import fetch from 'node-fetch';
-import fs from 'fs';
+// import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -12,31 +12,47 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Get directory name in ES module
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// Auth0 configuration
+// const jwtCheck = auth({
+//   audience: 'https://productivity-nudge-api',
+//   issuerBaseURL: 'https://dev-hjpjgqsdagc2hvh0.us.auth0.com/',
+//   tokenSigningAlg: 'RS256'
+// });
 
-// Middleware
-app.use(cors());
+// // Get directory name in ES module
+// const __filename = fileURLToPath(import.meta.url);
+// const __dirname = path.dirname(__filename);
+
+// // Middleware
+app.use(cors({
+  origin: '*', // Allows all origins for Chrome extension
+  methods: ['GET', 'POST'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(express.json({ limit: '50mb' })); // Increase limit for image data
 
-// Create logs directory if it doesn't exist
-const logsDir = path.join(__dirname, 'logs');
-if (!fs.existsSync(logsDir)) {
-  fs.mkdirSync(logsDir);
-}
+// // Public routes
+// app.get('/health', (req, res) => {
+//   res.json({ status: 'ok' });
+// });
 
-// Google Gemini API endpoint
-const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-vision:generateContent';
+// // Protected routes - requires authentication
+// app.use('/api', jwtCheck);
+
+// // User profile endpoint
+// app.get('/api/profile', (req, res) => {
+//   res.json({
+//     userId: req.auth.sub,
+//     message: 'Profile information retrieved successfully'
+//   });
+// });
+
+// Google Gemini API endpoint (using the latest recommended model for vision)
+const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent';
 // Add your API key directly here
-const API_KEY = 'AIzaSyDIJmvCa8bkonKAWrgodywFa4INAWMADwM'; // Replace with your actual API key
+const API_KEY = 'AIzaSyDIJmvCa8bkonKAWrgodywFa4INAWMADwM'; //
 
-// Helper function to log data for debugging
-function logData(data, fileName) {
-  const timestamp = new Date().toISOString().replace(/:/g, '-');
-  const logPath = path.join(logsDir, `${fileName}-${timestamp}.json`);
-  fs.writeFileSync(logPath, JSON.stringify(data, null, 2));
-}
+
 
 // Endpoint to receive screenshot data
 app.post('/analyze', async (req, res) => {
@@ -49,14 +65,10 @@ app.post('/analyze', async (req, res) => {
     
     console.log(`Analyzing screenshot from: ${title} (${url})`);
     
-    // If API key is not set, return mock data for development
+    // If API key is not set, return an error
     if (!API_KEY) {
-      console.warn('No API key found. Using mock data. Set GEMINI_API_KEY in .env file.');
-      const mockResult = Math.random() > 0.7;
-      return res.json({ 
-        unproductive: mockResult,
-        message: mockResult ? 'This looks like an unproductive site.' : 'Continuing productive work.'
-      });
+      console.error('No API key found. Set GEMINI_API_KEY in .env file.');
+      return res.status(500).json({ error: 'API key not configured' });
     }
     
     // Extract base64 data from data URL
@@ -64,77 +76,145 @@ app.post('/analyze', async (req, res) => {
     
     // Prepare request to Gemini API
     const payload = {
-      contents: [{
-        parts: [
-          {
-            text: `Analyze this screenshot and determine if the user is engaging in productive or unproductive behavior. 
-            The user is currently on ${url} with the page title "${title}".
-            Consider the following:
-            1. Is this website typically used for professional work, education, or productive tasks?
-            2. Does the content visible suggest the user is working or being distracted?
-            3. Based on your analysis, would nudging the user to refocus be appropriate?
-            
-            Rate the productivity on a scale of 0-100, where 0 is completely unproductive and 100 is highly productive.
-            Then provide a short, supportive message if the user should refocus.
-            
-            Response format:
+      contents: [
+        {
+          parts: [
             {
-              "productivityScore": [0-100],
-              "analysis": "[brief explanation]",
-              "message": "[supportive message if score < ${threshold}, otherwise empty]"
-            }`
-          },
-          {
-            inline_data: {
-              mime_type: "image/jpeg",
-              data: base64Data
+              text: `Analyze this screenshot from ${title} (${url}) and determine if the user is being productive or distracted. Provide a productivity score between 0-100 where higher means more productive. Use these criteria:\n
+              1. Is this work/study related content?\n
+              2. Is this something that might be distracting the user from work?\n
+              3. Does this appear to be social media, entertainment, or games?\n
+              A score below ${threshold || 50} is considered unproductive.\n
+              Return ONLY a JSON object with these fields:\n
+              {\n
+                "productivityScore": number between 0-100,\n
+                "unproductive": boolean based on threshold,\n
+                "message": a one-line message if unproductive, explaining why\n
+              }\n`
+            },
+            {
+              inline_data: {
+                mime_type: 'image/jpeg',
+                data: base64Data
+              }
             }
-          }
-        ]
-      }],
+          ]
+        }
+      ],
       generationConfig: {
-        temperature: 0.2,
-        topK: 32,
-        topP: 0.95,
-        maxOutputTokens: 1024,
+        temperature: 0.4,
+        maxOutputTokens: 100
       }
     };
     
     // Call the Gemini API
-    const response = await fetch(`${GEMINI_API_URL}?key=${API_KEY}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(payload)
-    });
+    console.log('🌐 Sending request to Gemini API...');
     
-    const result = await response.json();
-    
-    // Log the API response for debugging (in development)
-    // logData(result, 'gemini-response');
+    let result;
+    try {
+      // Make sure API key is appended to URL
+      const apiUrl = `${GEMINI_API_URL}?key=${API_KEY}`;
+      console.log('Using API URL:', apiUrl.replace(API_KEY, 'REDACTED'));
+      
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+      
+      console.log(`🔄 Gemini API response status: ${response.status} ${response.statusText}`);
+      
+      if (!response.ok) {
+        // Get error details from response
+        const errorText = await response.text();
+        console.error('Gemini API Error details:', errorText);
+        throw new Error(`Gemini API returned status ${response.status}: ${response.statusText}`);
+      }
+      
+      result = await response.json();
+      console.log('✅ Successfully received Gemini API response data');
+      
+      // Check if we got a proper response structure
+      if (!result.candidates || !result.candidates.length) {
+        console.error('❌ Unexpected Gemini API response format:', JSON.stringify(result).substring(0, 300));
+        throw new Error('Invalid response format from Gemini API');
+      }
+      
+      // Log the API response for debugging
+      console.log('✅ Gemini API received and processed screenshot');
+      console.log(`🖼️ Screenshot from: ${url} (${title})`);
+      
+      // Always log partial response for debugging
+      if (result.candidates && result.candidates[0] && result.candidates[0].content.parts[0].text) {
+        console.log('📊 Gemini response preview:');
+        console.log(result.candidates[0].content.parts[0].text.substring(0, 300) + '...');
+      } else {
+        console.error('⚠️ Unexpected Gemini response structure:', JSON.stringify(result).substring(0, 300));
+      }
+    } catch (apiError) {
+      console.error('❌ Gemini API Error:', apiError.message);
+      throw apiError; // Re-throw to be caught by the outer try-catch
+    }
     
     // Extract the analysis from the response
     let analysis = {};
+    console.log('🔍 Processing Gemini response...');
     
     try {
       if (result.candidates && result.candidates[0].content.parts[0].text) {
         const responseText = result.candidates[0].content.parts[0].text;
+        console.log('Raw Gemini response:', responseText.substring(0, 300) + '...');
         
         // Try to extract JSON from the response
-        const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+        const jsonMatch = responseText.match(/\{[\s\S]*?\}/);
         
         if (jsonMatch) {
-          analysis = JSON.parse(jsonMatch[0]);
+          try {
+            analysis = JSON.parse(jsonMatch[0]);
+            console.log('Successfully parsed JSON response:', analysis);
+          } catch (jsonError) {
+            console.error('Error parsing JSON:', jsonError);
+            // Fallback to regex extraction
+            const scoreMatch = responseText.match(/productivityScore"?\s*:\s*(\d+)/);
+            const messageMatch = responseText.match(/message"?\s*:\s*"([^"]*)"/);
+            
+            analysis = {
+              productivityScore: scoreMatch ? parseInt(scoreMatch[1]) : 50,
+              message: messageMatch ? messageMatch[1] : 'Consider refocusing on your tasks.'
+            };
+            console.log('Extracted via regex:', analysis);
+          }
         } else {
-          // If no JSON format, try to extract the score
-          const scoreMatch = responseText.match(/productivityScore"?\s*:\s*(\d+)/);
-          const messageMatch = responseText.match(/message"?\s*:\s*"([^"]*)"/);
+          // Direct score extraction without JSON
+          console.log('No JSON found, trying manual extraction');
+          // Try different regex patterns
+          let scoreMatch = responseText.match(/productivityScore"?\s*:\s*(\d+)/) || 
+                         responseText.match(/productivity\s*score\s*[=:]\s*(\d+)/i) ||
+                         responseText.match(/\b(\d{1,2}|100)\s*\/\s*100\b/) ||
+                         responseText.match(/\bscore\s*:\s*(\d+)\b/i);
+          
+          let messageMatch = responseText.match(/message"?\s*:\s*"([^"]*)"/) ||
+                           responseText.match(/message[:\.]\s*(.+?)(?:\.|\n)/);
+          
+          // If no clear score found, estimate from text sentiment
+          let score = 50; // Default score
+          if (scoreMatch && scoreMatch[1]) {
+            score = parseInt(scoreMatch[1]);
+          } else if (responseText.toLowerCase().includes('unproductive') || 
+                    responseText.toLowerCase().includes('distract')) {
+            score = 30; // Likely unproductive
+          } else if (responseText.toLowerCase().includes('productive') ||
+                    responseText.toLowerCase().includes('work')) {
+            score = 70; // Likely productive
+          }
           
           analysis = {
-            productivityScore: scoreMatch ? parseInt(scoreMatch[1]) : 50,
-            message: messageMatch ? messageMatch[1] : 'Consider refocusing on your tasks.'
+            productivityScore: score,
+            message: messageMatch ? messageMatch[1] : 'Consider checking your focus.'
           };
+          console.log('Manually extracted:', analysis);
         }
       }
     } catch (error) {
@@ -146,20 +226,39 @@ app.post('/analyze', async (req, res) => {
       };
     }
     
+    // Set a default productivity score if undefined
+    if (analysis.productivityScore === undefined) {
+      console.warn('Productivity score was undefined, using default of 50');
+      analysis.productivityScore = 50;
+    }
+    
+    // Make sure the score is a number between 0-100
+    analysis.productivityScore = Math.max(-1, Math.min(100, parseInt(analysis.productivityScore) || 50));
+    
     // Determine if the behavior is unproductive based on threshold
     const unproductive = analysis.productivityScore < threshold;
     
-    console.log(`Analysis result: Score ${analysis.productivityScore}, Unproductive: ${unproductive}`);
+    console.log(`📋 Analysis complete - Score: ${analysis.productivityScore}, Unproductive: ${unproductive}`);
+    if (unproductive) {
+      console.log(`📝 Feedback: "${analysis.message || 'Consider refocusing'}"`);
+    }
     
-    // Return the result to the extension
+    // Return the result to the extension with a confirmation flag
     return res.json({
       unproductive,
       productivityScore: analysis.productivityScore,
-      message: unproductive ? analysis.message : ''
+      message: unproductive ? analysis.message : '',
+      processed: true,
+      timestamp: new Date().toISOString()
     });
   } catch (error) {
-    console.error('Error analyzing image:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('❌ Error analyzing image:', error.message);
+    console.error('Error details:', error.stack || error);
+    res.status(500).json({ 
+      error: 'Internal server error', 
+      message: error.message,
+      timestamp: new Date().toISOString()
+    });
   }
 });
 

@@ -1,330 +1,430 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
-/********************************************************
- * Generate a unique global ID (not shown in UI)
- ********************************************************/
-function getGlobalTaskId() {
-  return 'task-' + Date.now() + '-' + Math.floor(Math.random() * 100000);
-}
-
-/********************************************************
- * Return how many minutes have passed since 00:00 (midnight).
- ********************************************************/
-function getMinutesSinceMidnight(dateObj) {
-  const hours = dateObj.getHours();
-  const minutes = dateObj.getMinutes();
-  return hours * 60 + minutes; 
-}
-
-/********************************************************
- * We have 1440 minutes in a day (00:00 -> 24:00).
- ********************************************************/
-function totalMinutesInDay() {
-  return 24 * 60; // 1440
-}
-
-/********************************************************
- * Priority numeric for sorting: High > Medium > Low
- ********************************************************/
-function priorityValue(p) {
-  if (p === 'High') return 3;
-  if (p === 'Medium') return 2;
-  if (p === 'Low') return 1;
-  return 0;
-}
-
-/********************************************************
- * Color logic per priority:
- * - High: darkest purple
- * - Medium: medium purple
- * - Low: lightest purple
- ********************************************************/
+// Helper function to get priority color
 function getPriorityColor(priority) {
   if (priority === 'High') {
-    return 'hsl(262, 52%, 29%)'; // darkest
+    return 'hsl(262, 52%, 29%)'; // Darkest purple
   } else if (priority === 'Medium') {
-    return 'hsl(262, 52%, 44%)'; // middle
-  } else {
-    return 'hsl(262, 52%, 59%)'; // lightest
+    return 'hsl(262, 52%, 50%)'; // Medium purple
+  } else if (priority === 'Low') {
+    return 'hsl(262, 52%, 70%)'; // Lightest purple
   }
+  return 'hsl(0, 0%, 80%)'; // Default if none selected
 }
 
-/********************************************************
- * Growth Range per Priority:
- *   - High: grows from 60px -> 140px
- *   - Medium: grows from 40px -> 100px
- *   - Low: grows from 20px -> 60px
- ********************************************************/
-function getSizeRangeForPriority(priority) {
-  switch (priority) {
-    case 'High':
-      return { min: 60, max: 140 };
-    case 'Medium':
-      return { min: 40, max: 100 };
-    case 'Low':
-      return { min: 20, max: 60 };
-    default:
-      return { min: 20, max: 60 };
-  }
+// Convert a "minutes" string into total seconds
+function parseTime(timeString) {
+  if (!timeString) return 0;
+  const minutes = parseInt(timeString, 10);
+  return isNaN(minutes) ? 0 : minutes * 60;
+}
+
+// Convert total seconds into "mm:ss" format
+function formatTime(totalSeconds) {
+  if (!totalSeconds) return '0:00';
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${String(seconds).padStart(2, '0')}`;
 }
 
 export default function TaskParasite() {
-  // =========== STATE ===========
   const [tasks, setTasks] = useState([]);
-  const [title, setTitle] = useState('');
-  const [priority, setPriority] = useState('Medium');
-  const [filter, setFilter] = useState('All');
-
-  // Current time (minutes from midnight)
-  const [timeNow, setTimeNow] = useState(getMinutesSinceMidnight(new Date()));
-
-  // For editing a task
+  const [newTask, setNewTask] = useState('');
+  const [newPriority, setNewPriority] = useState(''); // default to empty
+  const [newTime, setNewTime] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
   const [editingTaskId, setEditingTaskId] = useState(null);
   const [editTitle, setEditTitle] = useState('');
-  const [editPriority, setEditPriority] = useState('Medium');
+  const [editPriority, setEditPriority] = useState(''); // default to empty
+  const [editTime, setEditTime] = useState('');
+  const [currentFocus, setCurrentFocus] = useState(null);
 
-  /********************************************************
-   * 1) Update time every minute
-   ********************************************************/
+  // Load tasks from Chrome storage on component mount
   useEffect(() => {
-    const timer = setInterval(() => {
-      setTimeNow(getMinutesSinceMidnight(new Date()));
-    }, 60_000); // update once per minute
+    if (chrome && chrome.storage) {
+      chrome.storage.local.get(['parasiteTasks', 'currentFocusParasite'], (result) => {
+        if (result.parasiteTasks) {
+          setTasks(result.parasiteTasks);
+        }
+        if (result.currentFocusParasite) {
+          setCurrentFocus(result.currentFocusParasite);
+        }
+      });
 
-    return () => clearInterval(timer);
+      // Listen for changes to tasks in storage
+      const handleStorageChange = (changes, areaName) => {
+        if (areaName === 'local') {
+          if (changes.parasiteTasks) {
+            setTasks(changes.parasiteTasks.newValue);
+          }
+          if (changes.currentFocusParasite) {
+            setCurrentFocus(changes.currentFocusParasite.newValue);
+          }
+        }
+      };
+
+      chrome.storage.onChanged.addListener(handleStorageChange);
+      return () => {
+        chrome.storage.onChanged.removeListener(handleStorageChange);
+      };
+    }
   }, []);
 
-  /********************************************************
-   * 2) Load tasks on mount
-   ********************************************************/
-  useEffect(() => {
-    chrome.storage.local.get(['parasiteTasks'], (res) => {
-      if (res.parasiteTasks) {
-        setTasks(res.parasiteTasks);
+  // Save tasks to Chrome storage and notify background script
+  const saveTasks = (updatedTasks) => {
+    if (chrome && chrome.storage) {
+      chrome.storage.local.set({ parasiteTasks: updatedTasks });
+      
+      // Notify background script about task changes
+      if (chrome && chrome.runtime) {
+        chrome.runtime.sendMessage({
+          action: 'updateParasiteTasks',
+          tasks: updatedTasks,
+        });
       }
-    });
-  }, []);
-
-  /********************************************************
-   * 3) Save tasks whenever they change
-   ********************************************************/
-  useEffect(() => {
-    chrome.storage.local.set({ parasiteTasks: tasks });
-  }, [tasks]);
-
-  /********************************************************
-   * 4) Adding a new task
-   ********************************************************/
-  const handleAddTask = (e) => {
-    e.preventDefault();
-    const trimmed = title.trim();
-    if (!trimmed) return;
-
-    const newTask = {
-      id: Date.now(),
-      globalId: getGlobalTaskId(), // not shown in UI
-      title: trimmed,
-      priority,
-      completed: false,  // newly created tasks are incomplete
-    };
-
-    setTasks([...tasks, newTask]);
-    setTitle('');
-    setPriority('Medium');
+    }
   };
 
-  /********************************************************
-   * 5) Remove a task
-   ********************************************************/
-  const handleRemoveTask = (taskId) => {
-    setTasks(tasks.filter((t) => t.id !== taskId));
+  // Save current focus task to Chrome storage
+  const saveCurrentFocus = (taskId) => {
+    if (chrome && chrome.storage) {
+      chrome.storage.local.set({ currentFocusParasite: taskId });
+
+      // Notify background script about focus change
+      if (chrome && chrome.runtime) {
+        chrome.runtime.sendMessage({
+          action: 'updateCurrentFocusParasite',
+          currentFocus: taskId,
+        });
+      }
+    }
   };
 
-  /********************************************************
-   * 6) Mark a task as completed (slider toggled)
-   *    This effectively removes it from the main view.
-   ********************************************************/
+  // Function to handle adding a new task
+  const handleAddTask = () => {
+    const trimmed = newTask.trim();
+    if (trimmed) {
+      const newTaskObject = {
+        id: Date.now(),
+        title: trimmed,
+        priority: newPriority || 'Low',
+        completed: false, // newly created tasks are incomplete
+        timeLeft: parseTime(newTime),
+      };
+      const updatedTasks = [...tasks, newTaskObject];
+      setTasks(updatedTasks);
+      saveTasks(updatedTasks);
+      setNewTask('');
+      setNewTime('');
+      setNewPriority('');
+    }
+  };
+
+  // Function to mark task as completed (using slider toggle) and delete task
   const handleToggleComplete = (taskId) => {
-    setTasks((prev) =>
-      prev.map((t) =>
-        t.id === taskId ? { ...t, completed: !t.completed } : t
-      )
-    );
+    const updatedTasks = tasks.filter((t) => t.id !== taskId); // Remove task when checked
+    setTasks(updatedTasks);
+    saveTasks(updatedTasks);
+    
+    // If completed task was the current focus, clear the focus
+    if (currentFocus === taskId) {
+      setCurrentFocus(null);
+      saveCurrentFocus(null);
+    }
   };
 
-  /********************************************************
-   * 7) SORT + FILTER
-   *    Also hide tasks that are "completed" from main view
-   ********************************************************/
-  const sortedTasks = [...tasks].sort((a, b) => priorityValue(b.priority) - priorityValue(a.priority));
-  const displayedTasks = sortedTasks.filter((task) => {
-    // Hide completed tasks from the view
-    if (task.completed) return false;
+  // Function to set focus on a task
+  const handleSetFocus = (taskId) => {
+    setCurrentFocus(currentFocus === taskId ? null : taskId);
+    saveCurrentFocus(currentFocus === taskId ? null : taskId);
+  };
 
-    // Filter by priority
-    if (filter === 'All') return true;
-    return task.priority === filter;
-  });
-
-  /********************************************************
-   * 8) Circle size logic
-   ********************************************************/
-  const totalDayMinutes = totalMinutesInDay(); // 1440
-  const dayRatio = Math.min(timeNow / totalDayMinutes, 1); // 0..1
-
-  /********************************************************
-   * 9) EDITING LOGIC
-   ********************************************************/
+  // Function to start editing a task
   const startEditing = (task) => {
     setEditingTaskId(task.id);
     setEditTitle(task.title);
-    setEditPriority(task.priority);
+    setEditPriority(task.priority || '');
+    setEditTime(String(task.timeLeft ? Math.floor(task.timeLeft / 60) : ''));
   };
 
+  // Function to save edited task
   const saveEdit = (taskId) => {
-    const trimmed = editTitle.trim();
-    if (!trimmed) {
-      // If empty, do nothing or remove it
-      return;
-    }
-    setTasks((prev) =>
-      prev.map((t) =>
-        t.id === taskId ? { ...t, title: trimmed, priority: editPriority } : t
-      )
+    const updatedTasks = tasks.map((task) =>
+      task.id === taskId
+        ? {
+            ...task,
+            title: editTitle,
+            priority: editPriority || 'Low',
+            timeLeft: parseTime(editTime),
+          }
+        : task
     );
+    setTasks(updatedTasks);
+    saveTasks(updatedTasks);
     setEditingTaskId(null);
   };
 
-  const cancelEdit = () => {
-    setEditingTaskId(null);
-  };
+  const sortedTasks = [...tasks].sort((a, b) => {
+    const priorityOrder = { High: 3, Medium: 2, Low: 1 };
+    return priorityOrder[b.priority] - priorityOrder[a.priority];
+  });
 
-  /********************************************************
-   * RENDER
-   ********************************************************/
   return (
-    <div style={{ marginBottom: '1rem' }}>
-      {/* ADD TASK FORM */}
-      <form onSubmit={handleAddTask} style={{ marginBottom: '1rem' }}>
+    <div>
+      {/* Add Task */}
+      <div style={{ display: 'flex', marginBottom: '15px' }}>
         <input
           type="text"
-          placeholder="Task..."
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          style={{ marginRight: '0.5rem' }}
+          value={newTask}
+          onChange={(e) => setNewTask(e.target.value)}
+          placeholder="Task Title"
+          style={{
+            flex: 1,
+            padding: '8px',
+            borderRadius: '4px',
+            border: '1px solid #ccc',
+            marginRight: '10px',
+          }}
         />
         <select
-          value={priority}
-          onChange={(e) => setPriority(e.target.value)}
-          style={{ marginRight: '0.5rem' }}
+          value={newPriority}
+          onChange={(e) => setNewPriority(e.target.value)}
+          style={{
+            padding: '8px',
+            borderRadius: '4px',
+            border: '1px solid #ccc',
+            marginRight: '10px',
+          }}
         >
-          <option>High</option>
-          <option>Medium</option>
-          <option>Low</option>
-        </select>
-        <button type="submit">Add Task</button>
-      </form>
-
-      {/* FILTER DROPDOWN */}
-      <div style={{ marginBottom: '1rem' }}>
-        <label>Filter: </label>
-        <select value={filter} onChange={(e) => setFilter(e.target.value)} style={{ marginLeft: '0.5rem' }}>
-          <option value="All">All</option>
+          <option value="">Select Priority</option>
           <option value="High">High</option>
           <option value="Medium">Medium</option>
           <option value="Low">Low</option>
         </select>
+        <input
+          type="text"
+          value={newTime}
+          onChange={(e) => setNewTime(e.target.value)}
+          placeholder="Time Left (minutes)"
+          style={{
+            padding: '8px',
+            borderRadius: '4px',
+            border: '1px solid #ccc',
+            marginRight: '10px',
+          }}
+        />
+        <button
+          onClick={handleAddTask}
+          style={{
+            padding: '8px 16px',
+            backgroundColor: '#4e2a84',
+            color: 'white',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: 'pointer',
+          }}
+        >
+          Add Task
+        </button>
       </div>
 
-      {/* TASK LIST */}
-      {displayedTasks.map((task) => {
-        // Circle size based on time of day + priority range
-        const { min, max } = getSizeRangeForPriority(task.priority);
-        const circleSize = min + (max - min) * dayRatio;
+      {/* Focus Task Info (if any) */}
+      {currentFocus && (
+        <div
+          style={{
+            backgroundColor: 'rgba(78, 42, 132, 0.2)',
+            padding: '10px',
+            marginBottom: '15px',
+            borderRadius: '8px',
+            border: '1px solid rgba(78, 42, 132, 0.5)',
+          }}
+        >
+          <p style={{ color: 'white', margin: 0 }}>
+            <strong>Currently Focusing On:</strong>{' '}
+            {tasks.find((t) => t.id === currentFocus)?.title}
+          </p>
+        </div>
+      )}
 
-        const circleStyle = {
-          width: `${circleSize}px`,
-          height: `${circleSize}px`,
-          borderRadius: '50%',
-          marginRight: '0.75rem',
-          backgroundColor: getPriorityColor(task.priority),
-          transition: 'width 0.5s, height 0.5s',
-        };
-
+      {/* Task List */}
+      {sortedTasks.map((task) => {
         const isEditing = editingTaskId === task.id;
+        const circleSize =
+          task.priority === 'High'
+            ? 70
+            : task.priority === 'Medium'
+            ? 60
+            : 50;
 
-        // If editing, show inline form
-        if (isEditing) {
-          return (
+        return (
+          <div
+            key={task.id}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              marginBottom: '20px',
+              border: '1px solid #fff',
+              borderRadius: '8px',
+              padding: '15px',
+              backgroundColor:
+                currentFocus === task.id
+                  ? 'rgba(78, 42, 132, 0.3)'
+                  : 'rgba(255, 255, 255, 0.1)',
+              justifyContent: 'space-between',
+              maxWidth: '400px',
+              margin: '0 auto',
+              height: isEditing ? 'auto' : '90px',
+            }}
+          >
+            {/* Circle */}
             <div
-              key={task.id}
-              style={{ display: 'flex', alignItems: 'center', marginBottom: '0.5rem' }}
-            >
+              style={{
+                width: `${circleSize}px`,
+                height: `${circleSize}px`,
+                borderRadius: '50%',
+                backgroundColor: getPriorityColor(task.priority),
+                marginRight: '20px',
+              }}
+            />
+
+            {/* Normal View (not editing) */}
+            {!isEditing && (
+              <>
+                <div style={{ flex: 1 }}>
+                  <strong style={{ color: 'white', fontSize: '1.3em' }}>
+                    {task.title}
+                  </strong>
+                  <br />
+                  <span style={{ color: 'white', fontSize: '1.1em' }}>
+                    Priority: {task.priority}
+                  </span>
+                  <br />
+                  <span style={{ color: 'white', fontSize: '1.1em' }}>
+                    {task.timeLeft > 0
+                      ? `Time Left: ${formatTime(task.timeLeft)}`
+                      : 'Time Left: Not specified'}
+                  </span>
+                </div>
+
+                {/* Focus Button */}
+                <button
+                  onClick={() => handleSetFocus(task.id)}
+                  style={{
+                    marginRight: '10px',
+                    padding: '8px 16px',
+                    backgroundColor:
+                      currentFocus === task.id ? '#8e5bd4' : '#4e2a84',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {currentFocus === task.id ? 'Unfocus' : 'Focus'}
+                </button>
+
+                {/* "Done?" label + Completion Checkbox */}
+                <label
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    marginLeft: '15px',
+                    cursor: 'pointer',
+                    color: 'white',
+                  }}
+                >
+                  <span style={{ fontSize: '0.8rem', marginBottom: '5px' }}>
+                    Done?
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={task.completed}
+                    onChange={() => handleToggleComplete(task.id)}
+                    style={{ cursor: 'pointer' }}
+                  />
+                </label>
+
+                {/* Edit Button */}
+                <button
+                  onClick={() => startEditing(task)}
+                  style={{
+                    marginLeft: '10px',
+                    padding: '8px 16px',
+                    backgroundColor: '#4e2a84',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Edit
+                </button>
+              </>
+            )}
+
+            {/* Edit Mode */}
+            {isEditing && (
               <div
                 style={{
-                  ...circleStyle,
-                  backgroundColor: getPriorityColor(editPriority),
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '10px',
+                  width: '100%',
+                  marginLeft: '20px',
                 }}
-              />
-              <div style={{ flex: 1 }}>
+              >
                 <input
                   type="text"
                   value={editTitle}
                   onChange={(e) => setEditTitle(e.target.value)}
-                  style={{ marginBottom: '0.25rem' }}
+                  style={{
+                    padding: '8px',
+                    borderRadius: '4px',
+                    border: '1px solid #ccc',
+                  }}
                 />
-                <br />
                 <select
                   value={editPriority}
                   onChange={(e) => setEditPriority(e.target.value)}
+                  style={{
+                    padding: '8px',
+                    borderRadius: '4px',
+                    border: '1px solid #ccc',
+                  }}
                 >
-                  <option>High</option>
-                  <option>Medium</option>
-                  <option>Low</option>
+                  <option value="">Select Priority</option>
+                  <option value="High">High</option>
+                  <option value="Medium">Medium</option>
+                  <option value="Low">Low</option>
                 </select>
-              </div>
-              <div>
-                <button onClick={() => saveEdit(task.id)} style={{ marginRight: '0.5rem' }}>
+                <input
+                  type="text"
+                  value={editTime}
+                  onChange={(e) => setEditTime(e.target.value)}
+                  placeholder="Time (min)"
+                  style={{
+                    padding: '8px',
+                    borderRadius: '4px',
+                    border: '1px solid #ccc',
+                  }}
+                />
+                <button
+                  onClick={() => saveEdit(task.id)}
+                  style={{
+                    padding: '8px 16px',
+                    backgroundColor: '#4e2a84',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    alignSelf: 'flex-start',
+                  }}
+                >
                   Save
                 </button>
-                <button onClick={cancelEdit}>Cancel</button>
               </div>
-            </div>
-          );
-        }
-
-        // Otherwise normal display
-        return (
-          <div
-            key={task.id}
-            style={{ display: 'flex', alignItems: 'center', marginBottom: '0.5rem' }}
-          >
-            {/* Circle */}
-            <div style={circleStyle} />
-
-            {/* Title + Priority */}
-            <div style={{ flex: 1 }}>
-              <strong>{task.title}</strong>
-              <br />
-              Priority: {task.priority}
-            </div>
-
-            {/* Complete Slider */}
-            <label style={{ marginRight: '0.5rem', display: 'flex', alignItems: 'center' }}>
-              <span style={{ marginRight: '0.5rem' }}>Done</span>
-              <input
-                type="checkbox"
-                checked={task.completed}
-                onChange={() => handleToggleComplete(task.id)}
-                style={{ transform: 'scale(1.5)', cursor: 'pointer' }}
-              />
-            </label>
-
-            {/* Edit & Remove Buttons */}
-            <button onClick={() => startEditing(task)} style={{ marginRight: '0.5rem' }}>
-              Edit
-            </button>
-            <button onClick={() => handleRemoveTask(task.id)}>Remove</button>
+            )}
           </div>
         );
       })}

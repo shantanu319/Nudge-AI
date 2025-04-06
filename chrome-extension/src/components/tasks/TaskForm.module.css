@@ -54,10 +54,15 @@
   background-repeat: no-repeat;
   background-position: right 0.5rem center;
   padding-right: 2rem;
+  min-width: 80px;
 }
 
-.select:focus {
-  outline: none;
+.select:not(:focus) {
+  color: var(--color-text-secondary);
+}
+
+.select:not(:focus) option:first-child {
+  display: none;
 }
 
 .button {

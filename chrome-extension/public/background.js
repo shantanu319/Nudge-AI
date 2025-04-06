@@ -119,9 +119,15 @@ chrome.notifications.onButtonClicked.addListener((notificationId, buttonIndex) =
   if (!notificationInfo) return;
 
   if (buttonIndex === 0) { // Block button
+    const domain = new URL(notificationInfo.url).hostname;
+    const history = getNotificationContext(domain);
+    history.dismissals++;
+    notificationHistory.set(domain, history);
+
     chrome.runtime.sendMessage({
       action: 'blockSite',
-      url: notificationInfo.url
+      url: notificationInfo.url,
+      duration: notificationInfo.suggestedBlockDuration
     });
   }
 
@@ -165,6 +171,75 @@ const INTERVENTION_THRESHOLDS = {
 // Rate limiting for screenshot capture
 let lastCaptureTime = 0;
 const MIN_CAPTURE_INTERVAL = 500; // Minimum 500ms between captures
+
+// Site tracking
+const siteTracking = new Map();
+const notificationHistory = new Map();
+const SITE_CATEGORIES = {
+  STREAMING: ['youtube.com', 'netflix.com', 'hulu.com', 'twitch.tv', 'disney.com', 'hbomax.com'],
+  GAMING: ['games', 'gaming', 'steam', 'roblox', 'minecraft', 'slither.io'],
+  SOCIAL_MEDIA: ['facebook.com', 'instagram.com', 'twitter.com', 'tiktok.com', 'snapchat.com', 'linkedin.com'],
+  NEWS_FORUMS: ['reddit.com', 'news', 'forum', 'discussion'],
+  SHOPPING: ['amazon.com', 'ebay.com', 'shopping', 'store', 'shop'],
+  PRODUCTIVITY: ['github.com', 'docs.google.com', 'notion.so', 'trello.com', 'asana.com']
+};
+
+function getSiteCategory(url) {
+  const domain = new URL(url).hostname.toLowerCase();
+  for (const [category, domains] of Object.entries(SITE_CATEGORIES)) {
+    if (domains.some(d => domain.includes(d))) {
+      return category;
+    }
+  }
+  return 'UNKNOWN';
+}
+
+function updateSiteTracking(url, domain) {
+  const now = Date.now();
+  const tracking = siteTracking.get(domain) || {
+    url,
+    startTime: now,
+    totalTime: 0,
+    lastUpdate: now,
+    category: getSiteCategory(url),
+    firstSeen: now
+  };
+
+  // If this is a new session (5-minute gap), update the start time but keep total time
+  if (now - tracking.lastUpdate > 5 * 60 * 1000) {
+    tracking.startTime = now;
+  } else {
+    // Update total time only if some time has passed since last update
+    const timeSinceLastUpdate = now - tracking.lastUpdate;
+    if (timeSinceLastUpdate > 0) {
+      const additionalMinutes = Math.floor(timeSinceLastUpdate / 60000);
+      if (additionalMinutes > 0) {
+        tracking.totalTime += additionalMinutes;
+        console.log(`📊 Updated time spent on ${domain}: ${tracking.totalTime} minutes`);
+      }
+    }
+  }
+
+  tracking.lastUpdate = now;
+  siteTracking.set(domain, tracking);
+  return tracking;
+}
+
+function getNotificationContext(domain) {
+  const history = notificationHistory.get(domain) || {
+    lastNotification: 0,
+    dismissals: 0,
+    lastDismissalReset: Date.now()
+  };
+
+  // Reset dismissals weekly
+  if (Date.now() - history.lastDismissalReset > 7 * 24 * 60 * 60 * 1000) {
+    history.dismissals = 0;
+    history.lastDismissalReset = Date.now();
+  }
+
+  return history;
+}
 
 // Server health check function
 async function checkServerHealth() {
@@ -294,6 +369,35 @@ async function captureAndAnalyze() {
     const currentDomain = new URL(tab.url).hostname;
     console.log('📸 Capturing screenshot for:', currentDomain);
 
+    // Update site tracking
+    const tracking = updateSiteTracking(tab.url, currentDomain);
+    const notifContext = getNotificationContext(currentDomain);
+
+    // Don't analyze if we just started tracking this site (wait at least 30 seconds)
+    if (Date.now() - tracking.firstSeen < 30000) {
+      console.log('🕐 Site recently opened, waiting before first analysis...');
+      return;
+    }
+
+    // Log current tracking status
+    console.log('📊 Current site tracking:', {
+      domain: currentDomain,
+      timeSpent: tracking.totalTime,
+      timeSinceFirstSeen: Math.floor((Date.now() - tracking.firstSeen) / 60000),
+      category: tracking.category
+    });
+
+    // Get battery status if available
+    let batteryStatus = 'unknown';
+    try {
+      if ('getBattery' in navigator) {
+        const battery = await navigator.getBattery();
+        batteryStatus = battery.charging ? 'charging' : `${Math.round(battery.level * 100)}%`;
+      }
+    } catch (error) {
+      console.log('⚠️ Battery status not available');
+    }
+
     const screenshotUrl = await chrome.tabs.captureVisibleTab(null, {
       format: 'jpeg',
       quality: 85
@@ -367,7 +471,14 @@ async function captureAndAnalyze() {
           taskContext,
           hasTasks: userTasks.length > 0 || parasiteTasks.length > 0,
           interventionStyle: settings.interventionStyle,
-          isEntertainment
+          isEntertainment: tracking.category !== 'PRODUCTIVITY',
+          siteCategory: tracking.category,
+          timeSpent: tracking.totalTime,
+          timeOfDay: new Date().toLocaleTimeString(),
+          lastNotificationTime: notifContext.lastNotification,
+          previousDismissals: notifContext.dismissals,
+          batteryStatus,
+          timeSinceFirstSeen: Math.floor((Date.now() - tracking.firstSeen) / 60000)
         })
       });
 
@@ -378,9 +489,9 @@ async function captureAndAnalyze() {
 
       const result = await response.json();
       console.log('📈 Analysis result:', {
-        unproductive: result.unproductive,
         productivityScore: result.productivityScore,
-        message: result.message
+        shouldNotify: result.shouldNotify,
+        reason: result.reason
       });
 
       // Store analysis result in history
@@ -401,31 +512,35 @@ async function captureAndAnalyze() {
         recentAnalyses.delete(oldestKey);
       }
 
-      // Check if notification is needed
-      if (result.unproductive || result.productivityScore < settings.threshold) {
-        console.log('⚠️ Low productivity detected, preparing notification...');
-        const notificationContext = {
-          url: tab.url,
-          tabTitle: tab.title,
-          productivityScore: result.productivityScore,
-          taskContext: taskContext,
-          interventionStyle: settings.interventionStyle,
-          geminiApiKey: settings.geminiApiKey
-        };
+      // Handle notification if needed
+      if (result.shouldNotify) {
+        console.log('🔔 Notification needed:', result.reason);
 
-        let message = result.message || `Productivity: ${result.productivityScore}%`;
-        if (settings.useGemini && settings.geminiApiKey) {
-          const geminiMessage = await generateGeminiMessage(notificationContext);
-          if (geminiMessage) {
-            message = geminiMessage;
-          }
+        // Verify time spent matches
+        if (result.timeSpent !== tracking.totalTime) {
+          console.log('⚠️ Time mismatch detected:', {
+            serverTime: result.timeSpent,
+            localTime: tracking.totalTime
+          });
         }
 
+        const notificationContext = {
+          url: tab.url,
+          domain: currentDomain,
+          timeSpent: tracking.totalTime,
+          category: tracking.category,
+          suggestedBlockDuration: result.suggestedBlockDuration
+        };
+
         await sendNotification(
-          'Productivity Alert',
-          message,
+          'Focus Guardian',
+          result.notificationMessage,
           notificationContext
         );
+
+        // Update notification history
+        notifContext.lastNotification = Date.now();
+        notificationHistory.set(currentDomain, notifContext);
       }
     } catch (error) {
       console.error('❌ Analysis error:', error);

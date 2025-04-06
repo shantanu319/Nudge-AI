@@ -94,7 +94,21 @@ app.post('/analyze', async (req, res) => {
     }
 
     // Get task information from request if available
-    const { taskContext, hasTasks, interventionStyle, isEntertainment, timeSpent, timeOfDay, lastNotificationTime, previousDismissals, batteryStatus, siteCategory } = req.body;
+    const { taskContext, hasTasks, interventionStyle, isEntertainment, timeSpent, timeOfDay, lastNotificationTime, previousDismissals, batteryStatus, siteCategory, timeSinceFirstSeen } = req.body;
+
+    // Don't notify if we just started tracking
+    if (timeSinceFirstSeen < 1) { // Less than 1 minute
+      console.log('Site recently opened, skipping notification');
+      return res.json({
+        productivityScore: 50,
+        shouldNotify: false,
+        notificationMessage: '',
+        suggestedBlockDuration: 0,
+        reason: 'Site recently opened',
+        processed: true,
+        timestamp: new Date().toISOString()
+      });
+    }
 
     // Prepare request to Gemini API
     const payload = {
@@ -108,6 +122,7 @@ Site Info:
 - Title: ${title}
 - Category: ${siteCategory || (isEntertainment ? 'entertainment' : 'unknown')}
 - Time spent: ${timeSpent || '0'} minutes
+- Time since first opened: ${timeSinceFirstSeen} minutes
 - Previous dismissals: ${previousDismissals || 0} in the last week
 
 Context:
@@ -129,6 +144,13 @@ Context Modifiers:
 - Work hours (9am-5pm): -30% time
 - Charging: +50% time
 - Previous dismissals: +5min per dismiss
+
+Important Rules:
+1. DO NOT send notifications if time_spent is 0 or if site was just opened
+2. First notification at 50% of threshold
+3. Final notification at 100% of threshold
+4. Minimum 5 minutes between notifications
+5. Consider work hours and battery status when calculating thresholds
 
 Based on this context, determine:
 1. Should we send a notification now?
@@ -236,6 +258,20 @@ Return ONLY a JSON object:
           try {
             analysis = JSON.parse(jsonMatch[0]);
             console.log('Successfully parsed JSON response:', analysis);
+
+            // Validate and fix the notification message if needed
+            if (analysis.shouldNotify && analysis.notificationMessage) {
+              // Extract time mentioned in message (if any)
+              const messageTimeMatch = analysis.notificationMessage.match(/(\d+)\s*minutes?/i);
+              if (messageTimeMatch && parseInt(messageTimeMatch[1]) !== timeSpent) {
+                // Replace incorrect time with actual time spent
+                analysis.notificationMessage = analysis.notificationMessage.replace(
+                  /\d+\s*minutes?/i,
+                  `${timeSpent} minute${timeSpent === 1 ? '' : 's'}`
+                );
+                console.log('Fixed time in notification message:', analysis.notificationMessage);
+              }
+            }
           } catch (jsonError) {
             console.error('Error parsing JSON:', jsonError);
             // Fallback to regex extraction
@@ -313,6 +349,7 @@ Return ONLY a JSON object:
       notificationMessage: analysis.notificationMessage || '',
       suggestedBlockDuration: analysis.suggestedBlockDuration || 30,
       reason: analysis.reason || '',
+      timeSpent,
       processed: true,
       timestamp: new Date().toISOString()
     });

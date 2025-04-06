@@ -4,10 +4,11 @@
   background: var(--color-bg-tertiary);
   border-radius: 8px;
   padding: 16px;
+  margin-top: 16px;
 }
 
 .title {
-  color: rgba(255, 255, 255, 0.9);
+  color: var(--color-text-primary);
   font-size: 1.125rem;
   margin-bottom: 1rem;
   font-weight: 500;
@@ -18,50 +19,92 @@
   border-radius: 8px;
   padding: 0.75rem;
   border: 1px solid var(--color-border-light);
+  overflow-x: auto;
+  max-height: 300px;
+  overflow-y: auto;
 }
 
 .table {
   width: 100%;
   border-collapse: collapse;
-  margin-top: 12px;
 }
 
 .table th {
   text-align: left;
-  padding: 8px;
+  padding: 8px 12px;
   font-weight: 600;
   color: var(--color-text-secondary);
   font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  position: sticky;
+  top: 0;
+  background: var(--color-bg-secondary);
+  z-index: 1;
 }
 
 .table td {
-  padding: 8px;
+  padding: 8px 12px;
   border-top: 1px solid var(--color-border-light);
   font-size: 14px;
 }
 
 .domain {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.domainIcon {
-  width: 16px;
-  height: 16px;
-  color: var(--color-text-secondary);
-}
-
-.time {
+.timeCell {
   font-family: monospace;
   color: var(--color-text-primary);
+  white-space: nowrap;
 }
 
-.percentage {
-  color: var(--color-text-secondary);
+.categoryBadge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
   font-size: 12px;
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+/* Category-specific styles */
+.streaming {
+  background: rgba(255, 0, 0, 0.1);
+  color: #ff4444;
+}
+
+.gaming {
+  background: rgba(128, 0, 255, 0.1);
+  color: #8855ff;
+}
+
+.social_media {
+  background: rgba(0, 128, 255, 0.1);
+  color: #3399ff;
+}
+
+.news_forums {
+  background: rgba(255, 128, 0, 0.1);
+  color: #ff8833;
+}
+
+.shopping {
+  background: rgba(0, 255, 128, 0.1);
+  color: #33cc66;
+}
+
+.productivity {
+  background: rgba(0, 255, 0, 0.1);
+  color: #44cc44;
+}
+
+.other {
+  background: rgba(128, 128, 128, 0.1);
+  color: #888888;
 }
 
 .noData {

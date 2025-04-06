@@ -173,7 +173,9 @@ let lastCaptureTime = 0;
 const MIN_CAPTURE_INTERVAL = 500; // Minimum 500ms between captures
 
 // Site tracking
-const siteTracking = new Map();
+let siteTracking = new Map();
+let lastActiveTab = null;
+let lastActiveTime = Date.now();
 const notificationHistory = new Map();
 const SITE_CATEGORIES = {
   STREAMING: ['youtube.com', 'netflix.com', 'hulu.com', 'twitch.tv', 'disney.com', 'hbomax.com'],
@@ -221,45 +223,103 @@ function updateAnalytics(url, domain, isProductive, timeSpent) {
   console.log('📊 Updated domain usage:', domainUsage);
 }
 
-function getSiteCategory(url) {
-  const domain = new URL(url).hostname.toLowerCase();
-  for (const [category, domains] of Object.entries(SITE_CATEGORIES)) {
-    if (domains.some(d => domain.includes(d))) {
-      return category;
+function getSiteCategory(urlOrDomain) {
+  let domain;
+  try {
+    // If it's a full URL, extract the hostname
+    if (urlOrDomain.startsWith('http://') || urlOrDomain.startsWith('https://')) {
+      domain = new URL(urlOrDomain).hostname.toLowerCase();
+    } else {
+      // If it's just a domain, use it directly
+      domain = urlOrDomain.toLowerCase();
     }
-  }
-  return 'UNKNOWN';
-}
 
-function updateSiteTracking(url, domain) {
-  const now = Date.now();
-  const tracking = siteTracking.get(domain) || {
-    url,
-    startTime: now,
-    totalTime: 0,
-    lastUpdate: now,
-    category: getSiteCategory(url),
-    firstSeen: now
-  };
-
-  // If this is a new session (5-minute gap), update the start time but keep total time
-  if (now - tracking.lastUpdate > 5 * 60 * 1000) {
-    tracking.startTime = now;
-  } else {
-    // Update total time only if some time has passed since last update
-    const timeSinceLastUpdate = now - tracking.lastUpdate;
-    if (timeSinceLastUpdate > 0) {
-      const additionalMinutes = Math.floor(timeSinceLastUpdate / 60000);
-      if (additionalMinutes > 0) {
-        tracking.totalTime += additionalMinutes;
-        console.log(`📊 Updated time spent on ${domain}: ${tracking.totalTime} minutes`);
+    for (const [category, domains] of Object.entries(SITE_CATEGORIES)) {
+      if (domains.some(d => domain.includes(d))) {
+        return category;
       }
     }
+    return 'OTHER';
+  } catch (error) {
+    console.warn('Invalid URL or domain:', urlOrDomain);
+    return 'OTHER';
+  }
+}
+
+function updateSiteTracking(tab, isPeriodicUpdate = false) {
+  if (!tab?.url || tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://')) {
+    return;
   }
 
-  tracking.lastUpdate = now;
-  siteTracking.set(domain, tracking);
-  return tracking;
+  let domain;
+  try {
+    domain = new URL(tab.url).hostname;
+  } catch (error) {
+    console.warn('Invalid tab URL:', tab.url);
+    return;
+  }
+
+  const currentTime = Date.now();
+
+  // If we have a last active tab and we're switching tabs, update its time
+  if (lastActiveTab && lastActiveTab !== domain) {
+    const lastTracking = siteTracking.get(lastActiveTab) || {
+      totalTime: 0,
+      category: getSiteCategory(lastActiveTab),
+      url: '',
+      firstSeen: currentTime
+    };
+    const timeToAdd = Math.floor((currentTime - lastActiveTime) / 1000); // Convert to seconds
+    if (timeToAdd > 0) {
+      lastTracking.totalTime += timeToAdd;
+      siteTracking.set(lastActiveTab, lastTracking);
+      console.log(`Updated time for ${lastActiveTab}: ${lastTracking.totalTime}s`);
+    }
+  }
+
+  // Get or create tracking for current domain
+  const tracking = siteTracking.get(domain) || {
+    totalTime: 0,
+    category: getSiteCategory(tab.url),
+    url: tab.url,
+    firstSeen: currentTime,
+    lastUpdate: currentTime
+  };
+
+  // If this is a periodic update of the current tab
+  if (isPeriodicUpdate && domain === lastActiveTab) {
+    const timeToAdd = Math.floor((currentTime - lastActiveTime) / 1000); // Convert to seconds
+    if (timeToAdd > 0) {
+      tracking.totalTime += timeToAdd;
+      tracking.lastUpdate = currentTime;
+      siteTracking.set(domain, tracking);
+      console.log(`Updated time for current domain ${domain}: ${tracking.totalTime}s`);
+    }
+  }
+
+  // Update last active state
+  lastActiveTab = domain;
+  lastActiveTime = currentTime;
+
+  // Prepare domain usage data
+  const domainUsage = {};
+  for (const [trackedDomain, data] of siteTracking.entries()) {
+    domainUsage[trackedDomain] = {
+      totalTime: data.totalTime,
+      category: data.category,
+      lastVisit: data.lastUpdate,
+      url: data.url
+    };
+  }
+
+  // Save to storage and trigger update
+  chrome.storage.local.set({ timeSpent: domainUsage }, () => {
+    if (chrome.runtime.lastError) {
+      console.error('Error saving to storage:', chrome.runtime.lastError);
+    } else {
+      console.log('Successfully updated storage with domain usage:', domainUsage);
+    }
+  });
 }
 
 function getNotificationContext(domain) {
@@ -439,7 +499,7 @@ async function captureAndAnalyze() {
     console.log('📸 Capturing screenshot for:', currentDomain);
 
     // Update site tracking
-    const tracking = updateSiteTracking(tab.url, currentDomain);
+    const tracking = updateSiteTracking(tab, true);
     const notifContext = getNotificationContext(currentDomain);
 
     // Don't analyze if we just started tracking this site (wait at least 30 seconds)
@@ -664,3 +724,31 @@ console.log('🚀 Background script loaded');
 
 // Log successful initialization
 console.log("✅ Service worker initialized successfully");
+
+// Initialize domain tracking
+chrome.tabs.onActivated.addListener(async (activeInfo) => {
+  try {
+    const tab = await chrome.tabs.get(activeInfo.tabId);
+    updateSiteTracking(tab);
+  } catch (error) {
+    console.error('Error handling tab activation:', error);
+  }
+});
+
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  if (changeInfo.status === 'complete') {
+    updateSiteTracking(tab);
+  }
+});
+
+// Update domain tracking every second for the active tab
+setInterval(async () => {
+  try {
+    const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (activeTab) {
+      updateSiteTracking(activeTab, true); // true flag indicates it's a periodic update
+    }
+  } catch (error) {
+    console.error('Error in tracking interval:', error);
+  }
+}, 1000); // Update every second

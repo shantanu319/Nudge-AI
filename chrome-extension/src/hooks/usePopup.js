@@ -12,73 +12,97 @@ export function usePopup() {
     });
     const [isActive, setIsActive] = useState(true);
 
-    // Load from storage
+    // Load from storage and set up live updates
     useEffect(() => {
         console.log('🔄 Loading popup data from storage...');
-        chrome.storage.local.get(
-            ['productivityStats', 'timeSpent', 'settings', 'isActive'],
-            (res) => {
-                console.log('📦 Storage data loaded:', {
-                    hasStats: !!res.productivityStats,
-                    hasTimeSpent: !!res.timeSpent,
-                    hasSettings: !!res.settings,
-                    isActive: res.isActive
-                });
 
-                if (res.productivityStats) setStats(res.productivityStats);
-                if (res.timeSpent) setDomainUsage(res.timeSpent);
-                if (res.settings) {
-                    const newSettings = {
-                        interval: 1,
-                        threshold: 50,
-                        interventionStyle: 'drill_sergeant',
-                        useGemini: true,
-                        geminiApiKey: '',
-                        ...res.settings
-                    };
-                    console.log('⚙️ Updated settings:', newSettings);
-                    setSettings(newSettings);
-                }
-                if (res.isActive !== undefined) setIsActive(res.isActive);
-            }
-        );
-
-        // Storage change listener
+        // Listen for storage changes
         const handleStorageChange = (changes, areaName) => {
             if (areaName === 'local') {
-                console.log('🔄 Storage changes detected:', Object.keys(changes));
-                if (changes.productivityStats) setStats(changes.productivityStats.newValue);
-                if (changes.timeSpent) setDomainUsage(changes.timeSpent.newValue);
-                if (changes.settings) {
-                    console.log('⚙️ Settings updated:', changes.settings.newValue);
-                    setSettings(prev => ({ ...prev, ...changes.settings.newValue }));
+                console.log('🔄 Storage changes detected:', changes);
+
+                if (changes.timeSpent) {
+                    const newTimeSpent = changes.timeSpent.newValue;
+                    console.log('📊 Time spent updated:', newTimeSpent);
+                    if (newTimeSpent && typeof newTimeSpent === 'object') {
+                        // Create a new object with the updated times
+                        const updatedUsage = Object.entries(newTimeSpent).reduce((acc, [domain, data]) => {
+                            acc[domain] = {
+                                ...data,
+                                totalTime: data.totalTime || 0
+                            };
+                            return acc;
+                        }, {});
+                        console.log('📊 Setting new domain usage:', updatedUsage);
+                        setDomainUsage(updatedUsage);
+                    }
                 }
-                if (changes.isActive) setIsActive(changes.isActive.newValue);
+
+                if (changes.productivityStats) {
+                    const newStats = changes.productivityStats.newValue;
+                    console.log('📊 Productivity stats updated:', newStats);
+                    setStats(newStats);
+                }
+
+                if (changes.settings) {
+                    const newSettings = changes.settings.newValue;
+                    console.log('⚙️ Settings updated:', newSettings);
+                    setSettings(prev => ({ ...prev, ...newSettings }));
+                }
+
+                if (changes.isActive !== undefined) {
+                    console.log('🔄 Active state updated:', changes.isActive.newValue);
+                    setIsActive(changes.isActive.newValue);
+                }
             }
         };
 
+        // Add storage change listener
         chrome.storage.onChanged.addListener(handleStorageChange);
-        return () => chrome.storage.onChanged.removeListener(handleStorageChange);
+
+        // Initial load from storage
+        chrome.storage.local.get(['timeSpent', 'productivityStats', 'settings', 'isActive'], (result) => {
+            console.log('📦 Initial storage load:', result);
+            if (result.timeSpent) {
+                const initialUsage = Object.entries(result.timeSpent).reduce((acc, [domain, data]) => {
+                    acc[domain] = {
+                        ...data,
+                        totalTime: data.totalTime || 0
+                    };
+                    return acc;
+                }, {});
+                console.log('📊 Setting initial domain usage:', initialUsage);
+                setDomainUsage(initialUsage);
+            }
+            if (result.productivityStats) {
+                setStats(result.productivityStats);
+            }
+            if (result.settings) {
+                setSettings(prev => ({ ...prev, ...result.settings }));
+            }
+            if (result.isActive !== undefined) {
+                setIsActive(result.isActive);
+            }
+        });
+
+        // Cleanup listener
+        return () => {
+            console.log('🧹 Cleaning up storage listener');
+            chrome.storage.onChanged.removeListener(handleStorageChange);
+        };
     }, []);
 
     const toggleActive = () => {
         const newActive = !isActive;
         console.log('🔄 Toggling extension active state:', newActive);
         setIsActive(newActive);
-        chrome.runtime.sendMessage({
-            action: 'toggleActive',
-            isActive: newActive
-        });
+        chrome.storage.local.set({ isActive: newActive });
     };
 
     const updateSettings = (newSettings) => {
         console.log('⚙️ Updating settings:', newSettings);
         const updatedSettings = { ...settings, ...newSettings };
         setSettings(updatedSettings);
-        chrome.runtime.sendMessage({
-            action: 'updateSettings',
-            settings: updatedSettings
-        });
         chrome.storage.local.set({ settings: updatedSettings });
     };
 

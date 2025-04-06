@@ -1,7 +1,6 @@
 import * as feather from 'feather-icons';
 import React, { useEffect, useState } from 'react';
 import { usePopup } from '../../hooks/usePopup';
-import ActivitySummary from '../activity/ActivitySummary';
 import Block from '../block-sites/Block';
 import DomainUsage from '../focus/DomainUsage';
 import Settings from '../settings/Settings';
@@ -72,7 +71,7 @@ export default function Popup() {
                             onClick={() => setActiveTab('focus')}
                         >
                             <span dangerouslySetInnerHTML={{ __html: getIcon('lock') }} />
-                            <span>Focus</span>
+                            <span>Blocking</span>
                         </button>
                         <button
                             className={`${styles.tab} ${activeTab === 'analytics' ? styles.active : ''}`}
@@ -98,7 +97,6 @@ export default function Popup() {
 
                         {activeTab === 'analytics' && (
                             <div className={styles.section}>
-                                <ActivitySummary stats={stats} />
                                 <DomainUsage domainUsage={domainUsage} />
                             </div>
                         )}

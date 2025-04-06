@@ -3,7 +3,8 @@ import { sendNotification } from './notifications.js';
 let currentRules = [];
 let settings = {
   interval: 1,  // screenshot interval, in minutes
-  threshold: 50 // unproductive threshold (%)
+  threshold: 50, // unproductive threshold (%)
+  interventionStyle: 'drill_sergeant' // Default to most aggressive intervention style
 };
 let isActive = true;
 
@@ -15,6 +16,19 @@ let userTasks = [];
 let currentFocusTask = null;
 let parasiteTasks = [];
 let currentFocusParasite = null;
+
+// Variables for smart intervention
+let recentAnalyses = []; // Store recent screenshot analyses
+const MAX_HISTORY_SIZE = 12; // Maximum number of analyses to store
+
+// Intervention style thresholds - consecutive unproductive screenshots needed
+const INTERVENTION_THRESHOLDS = {
+  drill_sergeant: 1,  // Every screenshot
+  vigilant_mentor: 2, // Every 2 screenshots
+  steady_coach: 4,    // Every 4 screenshots
+  patient_guide: 7,   // Every 7 screenshots
+  zen_observer: 10    // Every 10 screenshots
+};
 
 // Message handling
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
@@ -62,7 +76,8 @@ chrome.storage.local.get([
   'tasks',
   'currentFocus',
   'parasiteTasks',
-  'currentFocusParasite'
+  'currentFocusParasite',
+  'recentAnalyses'
 ], (result) => {
   // Load settings
   settings = result.settings || settings;
@@ -97,9 +112,47 @@ chrome.storage.local.get([
   if (result.currentFocusParasite) {
     currentFocusParasite = result.currentFocusParasite;
   }
+  
+  // Initialize recent analyses
+  if (result.recentAnalyses) {
+    recentAnalyses = result.recentAnalyses;
+  }
 
   startScreenshotTimer();
 });
+
+/**
+ * Determines if a notification should be shown based on intervention style and recent analyses
+ * @param {string} currentUrl - The URL of the current tab
+ * @returns {boolean} - Whether a notification should be shown
+ */
+function determineIfShouldNotify(currentUrl) {
+  // Get the threshold for the current intervention style
+  const threshold = INTERVENTION_THRESHOLDS[settings.interventionStyle] || 1;
+  
+  // Get current domain
+  const currentDomain = new URL(currentUrl).hostname;
+  
+  // Get recent analyses for this domain
+  const domainAnalyses = recentAnalyses.filter(analysis => analysis.domain === currentDomain);
+  
+  // Count consecutive unproductive instances
+  let consecutiveUnproductive = 0;
+  for (const analysis of domainAnalyses) {
+    if (analysis.unproductive) {
+      consecutiveUnproductive++;
+    } else {
+      break; // Break on first productive instance
+    }
+  }
+  
+  // Log the current intervention status with friendly style name
+  const styleName = settings.interventionStyle.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase());
+  console.log(`${styleName} mode: ${consecutiveUnproductive}/${threshold} consecutive unproductive instances on ${currentDomain}`);
+  
+  // Only notify if we have reached or exceeded the threshold
+  return consecutiveUnproductive >= threshold;
+}
 
 // Timer management
 // For domain-time tracking:
@@ -253,7 +306,8 @@ async function captureAndAnalyze() {
             title: tab.title,
             threshold: settings.threshold,
             taskContext: taskContext,
-            hasTasks: activeTasks.length > 0
+            hasTasks: activeTasks.length > 0,
+            interventionStyle: settings.interventionStyle // Include intervention style for context
           }),
         });
 
@@ -287,6 +341,22 @@ async function captureAndAnalyze() {
 
         const result = await response.json();
         console.log('Analysis result:', result);
+        
+        // Add current analysis to history with timestamp and URL
+        const currentAnalysis = {
+          timestamp: new Date().getTime(),
+          url: tab.url,
+          domain: new URL(tab.url).hostname,
+          unproductive: result.unproductive,
+          productivityScore: result.productivityScore,
+          message: result.message
+        };
+        
+        // Add to beginning of array and maintain max size
+        recentAnalyses.unshift(currentAnalysis);
+        if (recentAnalyses.length > MAX_HISTORY_SIZE) {
+          recentAnalyses.pop();
+        }
 
         // Update productivity stats
         chrome.storage.local.get(['productivityStats'], (data) => {
@@ -297,22 +367,31 @@ async function captureAndAnalyze() {
             stats.unproductive++;
             console.log('Unproductive site detected. Updating stats.');
 
-            // Send notification
-            sendNotification(
-              'Distracting Site Detected',
-              `You're on a distracting site: ${tab.url}. Would you like to block it?`,
-              [
-                { title: 'Block' }
-              ]
-            );
-
-            console.log('Notification sent for unproductive site.');
+            // Determine if we should show a notification based on intervention style
+            const shouldNotify = determineIfShouldNotify(tab.url);
+            
+            if (shouldNotify) {
+              // Send notification
+              sendNotification(
+                'Distracting Site Detected',
+                `You're on a distracting site: ${tab.url}. Would you like to block it?`,
+                [
+                  { title: 'Block' }
+                ]
+              );
+              console.log('Notification sent for unproductive site.');
+            } else {
+              console.log('Unproductive site detected but notification suppressed based on intervention style.');
+            }
           } else {
             stats.productive++;
             console.log('Productive site detected. Updating stats.');
           }
 
           chrome.storage.local.set({ productivityStats: stats });
+          
+          // Also save recent analyses to storage
+          chrome.storage.local.set({ recentAnalyses });
         });
       } catch (err) {
         console.error('Error sending screenshot to backend:', err.message);

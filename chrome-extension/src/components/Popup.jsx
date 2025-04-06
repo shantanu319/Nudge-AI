@@ -11,14 +11,16 @@ import Block from './Block';
 // Register Chart.js components
 ChartJS.register(ArcElement, Tooltip, Legend);
 
-
 const Popup = () => {
   // State variables
   const [stats, setStats] = useState({ productive: 0, unproductive: 0 });
   const [domainUsage, setDomainUsage] = useState({});
-  const [settings, setSettings] = useState({ interval: 5, threshold: 50 });
+  const [settings, setSettings] = useState({
+    interval: 5,
+    threshold: 50,
+    interventionStyle: 'drill_sergeant' // Default to most aggressive intervention style
+  });
   const [isActive, setIsActive] = useState(true);
-
 
   // Load from storage
   useEffect(() => {
@@ -44,7 +46,6 @@ const Popup = () => {
     return () => chrome.storage.onChanged.removeListener(handleStorageChange);
   }, []);
 
-
   // Handlers
   const toggleActive = () => {
     const newActive = !isActive;
@@ -54,20 +55,17 @@ const Popup = () => {
     });
   };
 
-
   const saveSettings = () => {
     chrome.storage.local.set({ settings }, () => {
       chrome.runtime.sendMessage({ action: 'updateSettings', settings });
     });
   };
 
-
   const resetStats = () => {
     const resetValue = { productive: 0, unproductive: 0 };
     setStats(resetValue);
     chrome.storage.local.set({ productivityStats: resetValue });
   };
-
 
   const totalSessions = stats.productive + stats.unproductive;
   const chartData = {
@@ -80,7 +78,6 @@ const Popup = () => {
     }],
   };
 
-
   const chartOptions = {
     plugins: {
       legend: {
@@ -89,13 +86,11 @@ const Popup = () => {
     },
   };
 
-
   // Return JSX structure
   return (
     <div className="glassmorphism-container">
       <div className="glass-card main-card">
         <h2 className="glass-title">Nudge AI</h2>
-
 
         {/* Status Section */}
         <div className="status-container">
@@ -105,13 +100,11 @@ const Popup = () => {
           </button>
         </div>
 
-
         {/* TaskParasite Section */}
         <div className="glass-card task-parasite-card" style={{ marginBottom: '20px' }}>
           <h3 className="section-title">My Task List</h3>
           <TaskParasite />
         </div>
-
 
         {/* Activity Summary */}
         <div className="glass-card chart-card" style={{ marginBottom: '20px' }}>
@@ -142,7 +135,6 @@ const Popup = () => {
           )}
         </div>
 
-
         {/* Settings Section */}
         <div className="glass-card settings-card" style={{ marginBottom: '20px' }}>
           <h3 className="section-title">Settings</h3>
@@ -151,6 +143,7 @@ const Popup = () => {
             <select id="interval" className="glass-select" value={settings.interval} onChange={(e) =>
               setSettings({ ...settings, interval: Number(e.target.value) })
             }>
+              <option value={0.1}>0.1</option> {/* added this for testing */}
               <option value={1}>1</option>
               <option value={3}>3</option>
               <option value={5}>5</option>
@@ -160,8 +153,9 @@ const Popup = () => {
             </select>
           </div>
           <div className="setting-row slider-row">
-            <label htmlFor="threshold" className="setting-label">Productivity Threshold:</label>
-            <div className="slider-container">
+            <label htmlFor="threshold" className="setting-label">Threshold</label>
+            <div className="threshold-container">
+              <span>{settings.threshold}%</span>
               <input
                 type="range"
                 id="threshold"
@@ -170,11 +164,22 @@ const Popup = () => {
                 max="90"
                 step="5"
                 value={settings.threshold}
-                onChange={(e) =>
-                  setSettings({ ...settings, threshold: Number(e.target.value) })
-                }
+                onChange={(e) => setSettings({ ...settings, threshold: Number(e.target.value) })}
               />
-              <span className="threshold-value">{settings.threshold}%</span>
+            </div>
+          </div>
+          <div className="setting-row">
+            <label htmlFor="interventionStyle" className="setting-label">Focus Guardian Style</label>
+            <div className="input-container">
+              <select id="interventionStyle" className="glass-select" value={settings.interventionStyle} onChange={(e) =>
+                setSettings({ ...settings, interventionStyle: e.target.value })
+              }>
+                <option value="drill_sergeant">Drill Sergeant</option>
+                <option value="vigilant_mentor">Vigilant Mentor</option>
+                <option value="steady_coach">Steady Coach</option>
+                <option value="patient_guide">Patient Guide</option>
+                <option value="zen_observer">Zen Observer</option>
+              </select>
             </div>
           </div>
           <button className="glass-button save-button" onClick={saveSettings}>Save Settings</button>

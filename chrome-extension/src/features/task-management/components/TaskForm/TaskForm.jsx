@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import styles from './TaskForm.module.css';
 
 export default function TaskForm({ onSubmit }) {
     const [newTask, setNewTask] = useState('');
@@ -12,29 +13,18 @@ export default function TaskForm({ onSubmit }) {
     };
 
     return (
-        <form onSubmit={handleSubmit} style={{ display: 'flex', marginBottom: '15px' }}>
+        <form onSubmit={handleSubmit} className={styles.form}>
             <input
                 type="text"
                 value={newTask}
                 onChange={(e) => setNewTask(e.target.value)}
                 placeholder="Task Title"
-                style={{
-                    flex: 1,
-                    padding: '8px',
-                    borderRadius: '4px',
-                    border: '1px solid #ccc',
-                    marginRight: '10px',
-                }}
+                className={styles.input}
             />
             <select
                 value={newPriority}
                 onChange={(e) => setNewPriority(e.target.value)}
-                style={{
-                    padding: '8px',
-                    borderRadius: '4px',
-                    border: '1px solid #ccc',
-                    marginRight: '10px',
-                }}
+                className={styles.select}
             >
                 <option value="High">High</option>
                 <option value="Medium">Medium</option>
@@ -42,14 +32,7 @@ export default function TaskForm({ onSubmit }) {
             </select>
             <button
                 type="submit"
-                style={{
-                    padding: '8px 16px',
-                    backgroundColor: '#4e2a84',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '4px',
-                    cursor: 'pointer',
-                }}
+                className={styles.button}
             >
                 Add Task
             </button>

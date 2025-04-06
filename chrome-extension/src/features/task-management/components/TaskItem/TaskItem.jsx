@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import styles from './TaskItem.module.css';
 
 // Helper function to get priority color
 function getPriorityColor(priority) {
@@ -28,85 +29,46 @@ export default function TaskItem({ task, isFocused, onToggleComplete, onSetFocus
 
     return (
         <div
+            className={`${styles.taskContainer} ${isFocused ? styles.focused : ''}`}
             style={{
-                display: 'flex',
-                alignItems: 'center',
-                marginBottom: '20px',
-                border: '1px solid #fff',
-                borderRadius: '8px',
-                padding: '15px',
-                backgroundColor: isFocused ? 'rgba(78, 42, 132, 0.3)' : 'rgba(255, 255, 255, 0.1)',
+                '--circle-size': `${circleSize}px`,
+                '--priority-color': getPriorityColor(task.priority)
             }}
         >
             {/* Priority Circle */}
-            <div
-                style={{
-                    width: circleSize,
-                    height: circleSize,
-                    borderRadius: '50%',
-                    backgroundColor: getPriorityColor(task.priority),
-                    marginRight: '15px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: 'white',
-                    fontWeight: 'bold',
-                }}
-            >
+            <div className={styles.priorityCircle}>
                 {task.priority[0]}
             </div>
 
             {/* Task Content */}
-            <div style={{ flex: 1 }}>
+            <div className={styles.taskContent}>
                 {isEditing ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <div className={styles.editForm}>
                         <input
                             type="text"
                             value={editTitle}
                             onChange={(e) => setEditTitle(e.target.value)}
-                            style={{
-                                padding: '8px',
-                                borderRadius: '4px',
-                                border: '1px solid #ccc',
-                            }}
+                            className={styles.editInput}
                         />
                         <select
                             value={editPriority}
                             onChange={(e) => setEditPriority(e.target.value)}
-                            style={{
-                                padding: '8px',
-                                borderRadius: '4px',
-                                border: '1px solid #ccc',
-                            }}
+                            className={styles.editSelect}
                         >
                             <option value="High">High</option>
                             <option value="Medium">Medium</option>
                             <option value="Low">Low</option>
                         </select>
-                        <div style={{ display: 'flex', gap: '10px' }}>
+                        <div className={styles.buttonGroup}>
                             <button
                                 onClick={handleSaveEdit}
-                                style={{
-                                    padding: '8px 16px',
-                                    backgroundColor: '#4e2a84',
-                                    color: 'white',
-                                    border: 'none',
-                                    borderRadius: '4px',
-                                    cursor: 'pointer',
-                                }}
+                                className={styles.saveButton}
                             >
                                 Save
                             </button>
                             <button
                                 onClick={() => setIsEditing(false)}
-                                style={{
-                                    padding: '8px 16px',
-                                    backgroundColor: '#666',
-                                    color: 'white',
-                                    border: 'none',
-                                    borderRadius: '4px',
-                                    cursor: 'pointer',
-                                }}
+                                className={styles.cancelButton}
                             >
                                 Cancel
                             </button>
@@ -114,31 +76,17 @@ export default function TaskItem({ task, isFocused, onToggleComplete, onSetFocus
                     </div>
                 ) : (
                     <>
-                        <h3 style={{ margin: '0 0 5px 0', color: 'white' }}>{task.title}</h3>
-                        <div style={{ display: 'flex', gap: '10px' }}>
+                        <h3 className={styles.taskTitle}>{task.title}</h3>
+                        <div className={styles.buttonGroup}>
                             <button
                                 onClick={() => onSetFocus(task.id)}
-                                style={{
-                                    padding: '6px 12px',
-                                    backgroundColor: isFocused ? '#4e2a84' : 'transparent',
-                                    color: 'white',
-                                    border: '1px solid #4e2a84',
-                                    borderRadius: '4px',
-                                    cursor: 'pointer',
-                                }}
+                                className={`${styles.actionButton} ${isFocused ? styles.focused : ''}`}
                             >
                                 {isFocused ? 'Unfocus' : 'Focus'}
                             </button>
                             <button
                                 onClick={() => setIsEditing(true)}
-                                style={{
-                                    padding: '6px 12px',
-                                    backgroundColor: 'transparent',
-                                    color: 'white',
-                                    border: '1px solid #4e2a84',
-                                    borderRadius: '4px',
-                                    cursor: 'pointer',
-                                }}
+                                className={styles.actionButton}
                             >
                                 Edit
                             </button>
@@ -148,47 +96,14 @@ export default function TaskItem({ task, isFocused, onToggleComplete, onSetFocus
             </div>
 
             {/* Complete Toggle */}
-            <label
-                style={{
-                    position: 'relative',
-                    display: 'inline-block',
-                    width: '60px',
-                    height: '34px',
-                }}
-            >
+            <label className={styles.toggleContainer}>
                 <input
                     type="checkbox"
                     checked={false}
                     onChange={() => onToggleComplete(task.id)}
-                    style={{ opacity: 0, width: 0, height: 0 }}
+                    className={styles.toggleInput}
                 />
-                <span
-                    style={{
-                        position: 'absolute',
-                        cursor: 'pointer',
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        backgroundColor: '#ccc',
-                        transition: '.4s',
-                        borderRadius: '34px',
-                    }}
-                >
-                    <span
-                        style={{
-                            position: 'absolute',
-                            content: '""',
-                            height: '26px',
-                            width: '26px',
-                            left: '4px',
-                            bottom: '4px',
-                            backgroundColor: 'white',
-                            transition: '.4s',
-                            borderRadius: '50%',
-                        }}
-                    />
-                </span>
+                <span className={styles.toggleSlider} />
             </label>
         </div>
     );

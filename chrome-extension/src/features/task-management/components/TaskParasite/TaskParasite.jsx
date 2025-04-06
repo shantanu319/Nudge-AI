@@ -3,6 +3,7 @@ import { useTaskManagement } from '../../hooks/useTaskManagement';
 import FocusIndicator from '../FocusIndicator/FocusIndicator';
 import TaskForm from '../TaskForm/TaskForm';
 import TaskItem from '../TaskItem/TaskItem';
+import styles from './TaskParasite.module.css';
 
 export default function TaskParasite() {
     const {
@@ -23,7 +24,7 @@ export default function TaskParasite() {
     const focusedTask = tasks.find(task => task.id === currentFocus);
 
     return (
-        <div>
+        <div className={styles.container}>
             <TaskForm onSubmit={handleAddTask} />
             <FocusIndicator focusedTask={focusedTask} />
             {sortedTasks.map((task) => (

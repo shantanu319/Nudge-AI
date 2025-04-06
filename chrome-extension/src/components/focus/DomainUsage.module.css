@@ -14,8 +14,6 @@
 }
 
 .tableContainer {
-  max-height: 200px;
-  overflow-y: auto;
   background: var(--color-bg-secondary);
   border-radius: 8px;
   padding: 0.75rem;
@@ -71,23 +69,4 @@
   color: var(--color-text-secondary);
   padding: 16px;
   font-size: 14px;
-}
-
-/* Custom scrollbar */
-.tableContainer::-webkit-scrollbar {
-  width: 6px;
-}
-
-.tableContainer::-webkit-scrollbar-track {
-  background: var(--color-bg-tertiary);
-  border-radius: 3px;
-}
-
-.tableContainer::-webkit-scrollbar-thumb {
-  background: var(--color-primary);
-  border-radius: 3px;
-}
-
-.tableContainer::-webkit-scrollbar-thumb:hover {
-  background: var(--color-hover);
 }

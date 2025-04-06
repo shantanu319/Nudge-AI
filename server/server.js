@@ -21,7 +21,7 @@ app.use(cors({
 app.use(express.json({ limit: '50mb' })); // Increase limit for image data
 
 // Google Gemini API endpoint (using the latest recommended model for vision)
-const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent';
+const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
 // Add your API key directly here
 const API_KEY = 'AIzaSyDIJmvCa8bkonKAWrgodywFa4INAWMADwM'; //
 

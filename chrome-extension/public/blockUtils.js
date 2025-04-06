@@ -6,21 +6,31 @@
 export const blockWebsite = (url) => {
     if (!url.trim()) return Promise.resolve();
 
+    // Extract the root domain from the URL
+    let rootDomain;
+    try {
+        // Remove protocol and path, only keep the domain
+        rootDomain = url.trim().replace(/^(https?:\/\/)?(www\.)?/, '').split('/')[0];
+    } catch (error) {
+        console.error('Error extracting root domain:', error);
+        return Promise.reject(error);
+    }
+
     return new Promise((resolve, reject) => {
         chrome.storage.local.get(['blockedSites'], (result) => {
             const blockList = result.blockedSites || [];
-            if (!blockList.includes(url.trim())) {
-                const updatedList = [...blockList, url.trim()];
+            if (!blockList.includes(rootDomain)) {
+                const updatedList = [...blockList, rootDomain];
                 chrome.storage.local.set({ blockedSites: updatedList }, () => {
-                    console.log(`Blocked site added: ${url}`);
+                    console.log(`Blocked site added: ${rootDomain}`);
 
                     // Create rules for the blocked sites
-                    const rules = updatedList.map((url, index) => ({
+                    const rules = updatedList.map((site, index) => ({
                         id: index + 1,
                         priority: 1,
                         action: { type: 'block' },
                         condition: {
-                            urlFilter: `||${url.replace(/https?:\/\//, '')}`,
+                            urlFilter: `||${site}`,
                             resourceTypes: ['main_frame'],
                         },
                     }));

@@ -31,7 +31,13 @@ export function useWebsiteBlocking() {
         if (url.trim()) {
             try {
                 await blockWebsite(url.trim());
-                // The blockList will be updated via the message listener
+                // Update local state immediately
+                const result = await new Promise((resolve) => {
+                    chrome.storage.local.get(['blockedSites'], resolve);
+                });
+                if (result.blockedSites) {
+                    setBlockList(result.blockedSites);
+                }
             } catch (error) {
                 console.error('Error blocking website:', error);
             }

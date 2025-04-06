@@ -33,83 +33,80 @@ export default function Popup() {
 
     return (
         <div className={styles.container}>
-            <div className={styles.card}>
-                <div className={styles.header}>
-                    <div className={styles.titleContainer}>
-                        <h1 className={styles.title}>Nudge</h1>
-                        <div className={styles.statusContainer}>
-                            <span className={styles.status}>{isActive ? 'Active' : 'Paused'}</span>
-                            <button
-                                className={`${styles.toggleButton} ${isActive ? styles.active : ''}`}
-                                onClick={toggleActive}
-                                dangerouslySetInnerHTML={{ __html: isActive ? getIcon('pause') : getIcon('play') }}
-                            />
+            {showSettings ? (
+                <Settings
+                    settings={settings}
+                    onUpdateSettings={updateSettings}
+                    onSaveSettings={saveSettings}
+                    onClose={() => setShowSettings(false)}
+                />
+            ) : (
+                <div className={styles.card}>
+                    <div className={styles.header}>
+                        <div className={styles.titleContainer}>
+                            <h1 className={styles.title}>Nudge</h1>
+                            <div className={styles.statusContainer}>
+                                <span className={styles.status}>{isActive ? 'Active' : 'Paused'}</span>
+                                <button
+                                    className={`${styles.toggleButton} ${isActive ? styles.active : ''}`}
+                                    onClick={toggleActive}
+                                    dangerouslySetInnerHTML={{ __html: isActive ? getIcon('pause') : getIcon('play') }}
+                                />
+                            </div>
                         </div>
-                    </div>
-                    <button
-                        className={styles.settingsButton}
-                        onClick={() => setShowSettings(!showSettings)}
-                        dangerouslySetInnerHTML={{ __html: getIcon('settings') }}
-                    />
-                </div>
-
-                {showSettings ? (
-                    <div className={styles.section}>
-                        <Settings
-                            settings={settings}
-                            onUpdateSettings={updateSettings}
-                            onSaveSettings={saveSettings}
+                        <button
+                            className={styles.settingsButton}
+                            onClick={() => setShowSettings(true)}
+                            dangerouslySetInnerHTML={{ __html: getIcon('settings') }}
                         />
                     </div>
-                ) : (
-                    <>
-                        <div className={styles.tabs}>
-                            <button
-                                className={`${styles.tab} ${activeTab === 'tasks' ? styles.active : ''}`}
-                                onClick={() => setActiveTab('tasks')}
-                            >
-                                <span dangerouslySetInnerHTML={{ __html: getIcon('check') }} />
-                                <span>Tasks</span>
-                            </button>
-                            <button
-                                className={`${styles.tab} ${activeTab === 'focus' ? styles.active : ''}`}
-                                onClick={() => setActiveTab('focus')}
-                            >
-                                <span dangerouslySetInnerHTML={{ __html: getIcon('lock') }} />
-                                <span>Focus</span>
-                            </button>
-                            <button
-                                className={`${styles.tab} ${activeTab === 'analytics' ? styles.active : ''}`}
-                                onClick={() => setActiveTab('analytics')}
-                            >
-                                <span dangerouslySetInnerHTML={{ __html: getIcon('bar-chart-2') }} />
-                                <span>Analytics</span>
-                            </button>
-                        </div>
 
-                        <div className={styles.content}>
-                            {activeTab === 'tasks' && (
-                                <div className={styles.section}>
-                                    <TaskParasite />
-                                </div>
-                            )}
+                    <div className={styles.tabs}>
+                        <button
+                            className={`${styles.tab} ${activeTab === 'tasks' ? styles.active : ''}`}
+                            onClick={() => setActiveTab('tasks')}
+                        >
+                            <span dangerouslySetInnerHTML={{ __html: getIcon('check') }} />
+                            <span>Tasks</span>
+                        </button>
+                        <button
+                            className={`${styles.tab} ${activeTab === 'focus' ? styles.active : ''}`}
+                            onClick={() => setActiveTab('focus')}
+                        >
+                            <span dangerouslySetInnerHTML={{ __html: getIcon('lock') }} />
+                            <span>Focus</span>
+                        </button>
+                        <button
+                            className={`${styles.tab} ${activeTab === 'analytics' ? styles.active : ''}`}
+                            onClick={() => setActiveTab('analytics')}
+                        >
+                            <span dangerouslySetInnerHTML={{ __html: getIcon('bar-chart-2') }} />
+                            <span>Analytics</span>
+                        </button>
+                    </div>
 
-                            {activeTab === 'focus' && (
-                                <div className={styles.section}>
-                                    <Block />
-                                </div>
-                            )}
+                    <div className={styles.content}>
+                        {activeTab === 'tasks' && (
+                            <div className={styles.section}>
+                                <TaskParasite />
+                            </div>
+                        )}
 
-                            {activeTab === 'analytics' && (
-                                <div className={styles.section}>
-                                    <ActivitySummary stats={stats} />
-                                    <DomainUsage domainUsage={domainUsage} />
-                                </div>
-                            )}
-                        </div>
-                    </>
-                )}
-            </div>
+                        {activeTab === 'focus' && (
+                            <div className={styles.section}>
+                                <Block />
+                            </div>
+                        )}
+
+                        {activeTab === 'analytics' && (
+                            <div className={styles.section}>
+                                <ActivitySummary stats={stats} />
+                                <DomainUsage domainUsage={domainUsage} />
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
         </div>
     );
 } 

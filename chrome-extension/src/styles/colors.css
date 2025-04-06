@@ -1,32 +1,32 @@
 :root {
   /* Primary Colors */
-  --color-primary: #5f634f;
-  --color-primary-light: #7b0d1e;
-  --color-primary-dark: #3d1308;
+  --color-primary: #4f46e5;
+  --color-primary-light: #6366f1;
+  --color-primary-dark: #4338ca;
 
   /* Secondary Colors */
-  --color-secondary: #9f2042;
-  --color-secondary-light: #e0edc5;
+  --color-secondary: #ec4899;
+  --color-secondary-light: #f472b6;
 
   /* Text Colors */
-  --color-text-primary: #3d1308;
-  --color-text-secondary: #5f634f;
-  --color-text-light: #e0edc5;
+  --color-text-primary: #1e293b;
+  --color-text-secondary: #64748b;
+  --color-text-light: #f8fafc;
 
   /* Background Colors */
-  --color-bg-primary: #e0edc5;
+  --color-bg-primary: #f1f5f9;
   --color-bg-secondary: #ffffff;
-  --color-bg-tertiary: #f8f9fa;
+  --color-bg-tertiary: #f8fafc;
 
   /* Border Colors */
-  --color-border: #5f634f;
-  --color-border-light: #e0edc5;
+  --color-border: #e2e8f0;
+  --color-border-light: #e2e8f0;
 
   /* State Colors */
-  --color-active: #5f634f;
-  --color-inactive: #9f2042;
-  --color-hover: #f0f4e8;
-  --color-error: #9f2042;
-  --color-success: #5f634f;
-  --color-warning: #ff8833;
+  --color-active: #4f46e5;
+  --color-inactive: #94a3b8;
+  --color-hover: #f1f5f9;
+  --color-error: #ef4444;
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
 }

@@ -35,14 +35,45 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   // Dynamic website blocking
   if (request.action === 'updateBlockedSites') {
     const removeIds = currentRules.map(rule => rule.id);
+    let rules;
+
+    if (request.rules) {
+      rules = request.rules;
+    } else if (request.blockList) {
+      rules = request.blockList.map((url, index) => ({
+        id: index + 1,
+        priority: 1,
+        action: { type: 'block' },
+        condition: {
+          urlFilter: `||${url.replace(/https?:\/\//, '')}`,
+          resourceTypes: ['main_frame'],
+        },
+      }));
+    } else {
+      console.error('Invalid updateBlockedSites request format');
+      return;
+    }
 
     chrome.declarativeNetRequest.updateDynamicRules({
       removeRuleIds: removeIds,
-      addRules: request.rules
+      addRules: rules
     }, () => {
-      currentRules = request.rules;
-      chrome.storage.local.set({ blockedRules: request.rules });
+      if (chrome.runtime.lastError) {
+        console.error('Error updating dynamic rules:', chrome.runtime.lastError);
+        return;
+      }
+
+      currentRules = rules;
+      chrome.storage.local.set({ blockedRules: rules }, () => {
+        if (chrome.runtime.lastError) {
+          console.error('Error saving blocked rules:', chrome.runtime.lastError);
+          return;
+        }
+        console.log('Rules updated and saved successfully');
+        sendResponse({ success: true });
+      });
     });
+    return true; // Keep the message channel open for the async response
   }
 
   // Productivity features
@@ -515,3 +546,35 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
   }
 });
+
+// Listener for notification clicks (dismiss)
+chrome.notifications.onClicked.addListener((id) => {
+  chrome.notifications.clear(id); // Dismiss notification
+});
+
+// Listener for notification close
+chrome.notifications.onClosed.addListener((id) => {
+  ACTIVE_NOTIFICATIONS.delete(id); // Cleanup
+});
+
+// Unified handler for all notification interactions
+const handleInteraction = async (notificationId, actionType) => {
+  if (!ACTIVE_NOTIFICATIONS.has(notificationId)) return;
+
+  const context = ACTIVE_NOTIFICATIONS.get(notificationId);
+  ACTIVE_NOTIFICATIONS.delete(notificationId);
+
+  // Immediate cleanup
+  chrome.notifications.clear(notificationId);
+  console.log("ACTION");
+  if (actionType === 'block') {
+    // Block the website and close the tab
+    console.log("BLOCKING");
+    try {
+      await blockWebsite(context.url);
+      chrome.tabs.remove(context.tabId);
+    } catch (error) {
+      console.error('Error blocking website:', error);
+    }
+  }
+};

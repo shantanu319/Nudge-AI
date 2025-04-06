@@ -23,3 +23,30 @@
   font-size: 0.875rem;
   color: #718096;
 }
+
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  background-color: var(--color-bg-tertiary);
+  border-radius: 0.5rem;
+}
+
+.emptyStateIcon {
+  color: var(--color-text-secondary);
+  font-size: 2rem;
+  margin-bottom: 1rem;
+}
+
+.emptyStateTitle {
+  color: var(--color-text-primary);
+  font-size: 1.25rem;
+  margin-bottom: 0.5rem;
+}
+
+.emptyStateDescription {
+  color: var(--color-text-secondary);
+  text-align: center;
+}

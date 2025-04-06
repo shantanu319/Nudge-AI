@@ -1,47 +1,91 @@
+@import "../../../../styles/colors.css";
+
 .container {
   min-width: 350px;
   min-height: 300px;
-  padding: 10px;
-  background: linear-gradient(135deg, #3a6186, #89253e);
-  background-attachment: fixed;
-  overflow-x: hidden;
-  border-radius: 15px;
+  padding: 16px;
+  background: var(--color-bg-primary);
+  overflow: hidden;
+  border-radius: 12px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
+    Ubuntu, Cantarell, sans-serif;
 }
 
 .card {
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
-  border-radius: 10px;
-  padding: 20px;
-  margin-bottom: 15px;
-  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  background: transparent;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
 }
 
 .card:hover {
   transform: translateY(-5px);
-  box-shadow: 0 12px 40px 0 rgba(31, 38, 135, 0.45);
+  box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.1);
 }
 
 .title {
-  color: rgba(255, 255, 255, 0.9);
-  font-size: 1.5rem;
+  color: var(--color-primary);
+  font-size: 1.75rem;
   margin-bottom: 1.5rem;
   text-align: center;
-  font-weight: 500;
+  font-weight: 600;
+  letter-spacing: -0.5px;
 }
 
 .section {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--color-bg-secondary);
   border-radius: 8px;
-  padding: 15px;
-  margin-bottom: 15px;
+  padding: 16px;
+  margin-bottom: 16px;
+  border: 1px solid var(--color-border-light);
+  transition: all 0.2s ease;
+}
+
+.section:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .sectionTitle {
-  color: rgba(255, 255, 255, 0.9);
-  font-size: 1.125rem;
-  margin-bottom: 1rem;
+  color: var(--color-primary);
+  font-size: 1rem;
+  margin-bottom: 12px;
   font-weight: 500;
+  letter-spacing: -0.3px;
+}
+
+/* Add some subtle animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.section {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* Custom scrollbar for better aesthetics */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-bg-tertiary);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-primary);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-hover);
 }

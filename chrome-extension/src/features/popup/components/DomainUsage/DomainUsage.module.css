@@ -1,0 +1,72 @@
+@import "../../../../styles/colors.css";
+
+.container {
+  margin-bottom: 0;
+}
+
+.title {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 1.125rem;
+  margin-bottom: 1rem;
+  font-weight: 500;
+}
+
+.tableContainer {
+  max-height: 200px;
+  overflow-y: auto;
+  background: var(--color-bg-secondary);
+  border-radius: 8px;
+  padding: 0.75rem;
+  border: 1px solid var(--color-border-light);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table th,
+.table td {
+  padding: 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid var(--color-border-light);
+  color: var(--color-text-primary);
+  font-size: 0.875rem;
+}
+
+.table th {
+  font-weight: 500;
+  color: var(--color-text-primary);
+  background: var(--color-bg-tertiary);
+}
+
+.timeCell {
+  text-align: right;
+  color: var(--color-text-secondary);
+}
+
+.noData {
+  color: var(--color-text-secondary);
+  text-align: center;
+  padding: 1rem;
+  font-size: 0.875rem;
+}
+
+/* Custom scrollbar */
+.tableContainer::-webkit-scrollbar {
+  width: 6px;
+}
+
+.tableContainer::-webkit-scrollbar-track {
+  background: var(--color-bg-tertiary);
+  border-radius: 3px;
+}
+
+.tableContainer::-webkit-scrollbar-thumb {
+  background: var(--color-primary);
+  border-radius: 3px;
+}
+
+.tableContainer::-webkit-scrollbar-thumb:hover {
+  background: var(--color-hover);
+}

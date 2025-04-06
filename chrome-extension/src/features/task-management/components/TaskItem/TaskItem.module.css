@@ -1,126 +1,99 @@
 .taskContainer {
   display: flex;
   align-items: center;
-  margin-bottom: 20px;
-  border: 1px solid #fff;
-  border-radius: 8px;
-  padding: 15px;
-  background-color: rgba(255, 255, 255, 0.1);
+  margin-bottom: 1rem;
+  border: 1px solid var(--color-border-light);
+  border-radius: 0.5rem;
+  padding: 1rem;
+  background-color: var(--color-bg-secondary);
+  transition: all 0.2s ease;
+}
+
+.taskContainer:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .taskContainer.focused {
-  background-color: rgba(78, 42, 132, 0.3);
-}
-
-.priorityCircle {
-  width: var(--circle-size);
-  height: var(--circle-size);
-  border-radius: 50%;
-  background-color: var(--priority-color);
-  margin-right: 15px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  font-weight: bold;
+  background-color: var(--color-bg-primary);
+  border-color: var(--color-primary);
 }
 
 .taskContent {
   flex: 1;
-}
-
-.editForm {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.editInput {
-  padding: 8px;
-  border-radius: 4px;
-  border: 1px solid #ccc;
-}
-
-.editSelect {
-  padding: 8px;
-  border-radius: 4px;
-  border: 1px solid #ccc;
-}
-
-.buttonGroup {
-  display: flex;
-  gap: 10px;
-}
-
-.button {
-  padding: 8px 16px;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-.saveButton {
-  composes: button;
-  background-color: #4e2a84;
-}
-
-.cancelButton {
-  composes: button;
-  background-color: #666;
+  margin-left: 1rem;
 }
 
 .taskTitle {
-  margin: 0 0 5px 0;
-  color: white;
+  margin: 0 0 0.25rem 0;
+  color: var(--color-text-primary);
+  font-size: 1rem;
+}
+
+.taskDescription {
+  color: var(--color-text-secondary);
+  font-size: 0.875rem;
+  margin: 0;
+}
+
+.checkbox {
+  width: 1.25rem;
+  height: 1.25rem;
+  border: 2px solid var(--color-primary);
+  border-radius: 0.25rem;
+  background-color: var(--color-bg-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.checkbox:checked {
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.checkbox:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--color-primary-light);
 }
 
 .actionButton {
-  padding: 6px 12px;
-  color: white;
-  border: 1px solid #4e2a84;
-  border-radius: 4px;
+  padding: 0.5rem 1rem;
+  color: var(--color-text-light);
+  border: none;
+  border-radius: 0.375rem;
   cursor: pointer;
-  background-color: transparent;
+  background-color: var(--color-primary);
+  transition: all 0.2s ease;
+}
+
+.actionButton:hover {
+  background-color: var(--color-primary-dark);
 }
 
 .actionButton.focused {
-  background-color: #4e2a84;
+  background-color: var(--color-primary-dark);
 }
 
-.toggleContainer {
-  position: relative;
-  display: inline-block;
-  width: 60px;
-  height: 34px;
+.deleteButton {
+  composes: actionButton;
+  background-color: var(--color-error);
 }
 
-.toggleInput {
-  opacity: 0;
-  width: 0;
-  height: 0;
+.deleteButton:hover {
+  background-color: var(--color-error);
 }
 
-.toggleSlider {
-  position: absolute;
-  cursor: pointer;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: #ccc;
-  transition: 0.4s;
-  border-radius: 34px;
+.editButton {
+  composes: actionButton;
+  background-color: var(--color-secondary);
 }
 
-.toggleSlider:before {
-  position: absolute;
-  content: "";
-  height: 26px;
-  width: 26px;
-  left: 4px;
-  bottom: 4px;
-  background-color: white;
-  transition: 0.4s;
-  border-radius: 50%;
+.editButton:hover {
+  background-color: var(--color-secondary);
+}
+
+.completed {
+  opacity: 0.7;
+  text-decoration: line-through;
+  color: var(--color-text-secondary);
 }

@@ -27,8 +27,8 @@ export function useWebsiteBlocking() {
     }, []);
 
     // Update block rules
-    const updateBlockRules = () => {
-        const rules = blockList.map((url, index) => ({
+    const updateBlockRules = (newBlockList) => {
+        const rules = newBlockList.map((url, index) => ({
             id: index + 1,
             priority: 1,
             action: { type: 'block' },
@@ -49,21 +49,20 @@ export function useWebsiteBlocking() {
             const updatedList = [...new Set([...blockList, url.trim()])];
             setBlockList(updatedList);
             chrome.storage.local.set({ blockedSites: updatedList });
-            return true;
+            updateBlockRules(updatedList);
         }
-        return false;
     };
 
     const removeUrl = (urlToRemove) => {
-        const filtered = blockList.filter(url => url !== urlToRemove);
-        setBlockList(filtered);
-        chrome.storage.local.set({ blockedSites: filtered });
+        const updatedList = blockList.filter(url => url !== urlToRemove);
+        setBlockList(updatedList);
+        chrome.storage.local.set({ blockedSites: updatedList });
+        updateBlockRules(updatedList);
     };
 
     return {
         blockList,
         addUrl,
-        removeUrl,
-        updateBlockRules
+        removeUrl
     };
 } 

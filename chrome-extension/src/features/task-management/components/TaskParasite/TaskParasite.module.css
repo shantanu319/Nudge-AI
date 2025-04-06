@@ -1,6 +1,131 @@
 .container {
-  padding: 20px;
-  background-color: #1a1a1a;
-  min-height: 100vh;
+  padding: 0;
+  background-color: transparent;
+  color: #2b8a3e;
+}
+
+.taskList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.taskItem {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  background: #ffffff;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.taskItem:hover {
+  background: #f1f3f5;
+  transform: translateY(-1px);
+}
+
+.taskInput {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: #2b8a3e;
+  font-size: 0.9rem;
+  padding: 4px 8px;
+}
+
+.taskInput:focus {
+  outline: none;
+}
+
+.prioritySelect {
+  margin-left: 8px;
+  padding: 4px 8px;
+  border: 1px solid #e9ecef;
+  border-radius: 4px;
+  background: #ffffff;
+  color: #2b8a3e;
+  font-size: 0.9rem;
+}
+
+.addButton {
+  margin-top: 8px;
+  padding: 8px 16px;
+  background-color: #2b8a3e;
   color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.9rem;
+}
+
+.addButton:hover {
+  background-color: #2f9e44;
+  transform: translateY(-1px);
+}
+
+.taskParasite {
+  color: var(--color-primary);
+  font-size: 0.875rem;
+  margin-bottom: 0.5rem;
+}
+
+.taskParasiteContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.taskParasiteItem {
+  display: flex;
+  align-items: center;
+  padding: 1rem;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border-light);
+  border-radius: 0.5rem;
+}
+
+.taskParasiteItem:hover {
+  background: var(--color-bg-primary);
+}
+
+.taskParasiteItem .title {
+  flex: 1;
+  color: var(--color-primary);
+}
+
+.taskParasiteItem .deleteButton {
+  background: none;
+  border: none;
+  color: var(--color-error);
+  cursor: pointer;
+  padding: 0.25rem;
+}
+
+.taskParasiteItem .deleteButton:hover {
+  color: var(--color-error);
+}
+
+.taskParasiteItem .editButton {
+  background: none;
+  border: none;
+  color: var(--color-primary);
+  cursor: pointer;
+  padding: 0.25rem;
+  margin-right: 0.5rem;
+}
+
+.taskParasiteItem .editButton:hover {
+  color: var(--color-primary-dark);
+}
+
+.taskParasiteItem.completed {
+  background-color: var(--color-primary);
+  color: var(--color-text-light);
+}
+
+.taskParasiteItem.completed .title {
+  text-decoration: line-through;
+  color: var(--color-text-light);
 }

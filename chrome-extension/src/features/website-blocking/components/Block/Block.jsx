@@ -8,20 +8,13 @@ export default function Block() {
     const {
         blockList,
         addUrl,
-        removeUrl,
-        updateBlockRules
+        removeUrl
     } = useWebsiteBlocking();
 
     return (
         <div className={styles.container}>
             <URLInput onSubmit={addUrl} />
             <BlockList blockList={blockList} onRemoveUrl={removeUrl} />
-            <button
-                className={styles.saveButton}
-                onClick={updateBlockRules}
-            >
-                Apply Blocking Rules
-            </button>
         </div>
     );
 } 

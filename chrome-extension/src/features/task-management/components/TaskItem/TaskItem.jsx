@@ -28,19 +28,14 @@ export default function TaskItem({ task, isFocused, onToggleComplete, onSetFocus
     };
 
     return (
-        <div
-            className={`${styles.taskContainer} ${isFocused ? styles.focused : ''}`}
-            style={{
-                '--circle-size': `${circleSize}px`,
-                '--priority-color': getPriorityColor(task.priority)
-            }}
-        >
-            {/* Priority Circle */}
-            <div className={styles.priorityCircle}>
-                {task.priority[0]}
-            </div>
+        <div className={`${styles.taskContainer} ${isFocused ? styles.focused : ''}`}>
+            <input
+                type="checkbox"
+                className={styles.checkbox}
+                checked={task.completed}
+                onChange={() => onToggleComplete(task.id)}
+            />
 
-            {/* Task Content */}
             <div className={styles.taskContent}>
                 {isEditing ? (
                     <div className={styles.editForm}>
@@ -49,6 +44,7 @@ export default function TaskItem({ task, isFocused, onToggleComplete, onSetFocus
                             value={editTitle}
                             onChange={(e) => setEditTitle(e.target.value)}
                             className={styles.editInput}
+                            autoFocus
                         />
                         <select
                             value={editPriority}
@@ -61,14 +57,14 @@ export default function TaskItem({ task, isFocused, onToggleComplete, onSetFocus
                         </select>
                         <div className={styles.buttonGroup}>
                             <button
-                                onClick={handleSaveEdit}
                                 className={styles.saveButton}
+                                onClick={handleSaveEdit}
                             >
                                 Save
                             </button>
                             <button
-                                onClick={() => setIsEditing(false)}
                                 className={styles.cancelButton}
+                                onClick={() => setIsEditing(false)}
                             >
                                 Cancel
                             </button>
@@ -76,35 +72,32 @@ export default function TaskItem({ task, isFocused, onToggleComplete, onSetFocus
                     </div>
                 ) : (
                     <>
-                        <h3 className={styles.taskTitle}>{task.title}</h3>
+                        <h3 className={`${styles.taskTitle} ${task.completed ? styles.completed : ''}`}>
+                            {task.title}
+                        </h3>
                         <div className={styles.buttonGroup}>
                             <button
-                                onClick={() => onSetFocus(task.id)}
                                 className={`${styles.actionButton} ${isFocused ? styles.focused : ''}`}
+                                onClick={() => onSetFocus(task.id)}
                             >
-                                {isFocused ? 'Unfocus' : 'Focus'}
+                                Focus
                             </button>
                             <button
+                                className={styles.editButton}
                                 onClick={() => setIsEditing(true)}
-                                className={styles.actionButton}
                             >
                                 Edit
+                            </button>
+                            <button
+                                className={styles.deleteButton}
+                                onClick={() => onUpdateTask(task.id, { deleted: true })}
+                            >
+                                Delete
                             </button>
                         </div>
                     </>
                 )}
             </div>
-
-            {/* Complete Toggle */}
-            <label className={styles.toggleContainer}>
-                <input
-                    type="checkbox"
-                    checked={false}
-                    onChange={() => onToggleComplete(task.id)}
-                    className={styles.toggleInput}
-                />
-                <span className={styles.toggleSlider} />
-            </label>
         </div>
     );
 } 

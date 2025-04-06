@@ -46,12 +46,6 @@ export function usePopup() {
         });
     };
 
-    const resetStats = () => {
-        const resetValue = { productive: 0, unproductive: 0 };
-        setStats(resetValue);
-        chrome.storage.local.set({ productivityStats: resetValue });
-    };
-
     const updateSettings = (newSettings) => {
         setSettings(newSettings);
     };
@@ -63,7 +57,6 @@ export function usePopup() {
         isActive,
         toggleActive,
         saveSettings,
-        resetStats,
         updateSettings
     };
 } 

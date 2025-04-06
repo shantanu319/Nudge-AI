@@ -1,3 +1,5 @@
+import { sendNotification } from './notifications.js';
+
 let currentRules = [];
 let settings = {
   interval: 1,  // screenshot interval, in minutes
@@ -11,7 +13,7 @@ let screenshotTimer = null;
 // Variables for handling tasks
 let userTasks = [];
 let currentFocusTask = null;
-let parasiteTasks = []; 
+let parasiteTasks = [];
 let currentFocusParasite = null;
 
 // Message handling
@@ -87,7 +89,7 @@ chrome.storage.local.get([
   if (result.currentFocus) {
     currentFocusTask = result.currentFocus;
   }
-  
+
   // Initialize parasite tasks
   if (result.parasiteTasks) {
     parasiteTasks = result.parasiteTasks;
@@ -211,33 +213,33 @@ async function captureAndAnalyze() {
       try {
         // Combine tasks from both sources
         const allTasks = [...userTasks, ...parasiteTasks];
-        
+
         // Prepare task-related data for the analysis
         let taskContext = '';
         const activeTasks = allTasks.filter(task => !task.completed);
-        
+
         // Check for focus tasks from either source
-        const focusedTask = userTasks.find(task => task.id === currentFocusTask) || 
-                            parasiteTasks.find(task => task.id === currentFocusParasite);
-        
+        const focusedTask = userTasks.find(task => task.id === currentFocusTask) ||
+          parasiteTasks.find(task => task.id === currentFocusParasite);
+
         // Format parasite tasks with priority info
         const parasiteActiveTasks = parasiteTasks.filter(task => !task.completed);
-        
+
         if (activeTasks.length > 0) {
           // Start with regular tasks
           if (userTasks.filter(task => !task.completed).length > 0) {
             taskContext += `Active tasks:\n${userTasks.filter(task => !task.completed).map(t => `- ${t.title}`).join('\n')}\n\n`;
           }
-          
+
           // Add parasite tasks with priority
           if (parasiteActiveTasks.length > 0) {
             taskContext += `Active tasks with priority:\n${parasiteActiveTasks.map(t => `- ${t.title} (Priority: ${t.priority})`).join('\n')}\n\n`;
           }
-          
+
           if (focusedTask) {
             taskContext += `Current focus task: ${focusedTask.title}${focusedTask.priority ? ` (Priority: ${focusedTask.priority})` : ''}\n\n`;
           }
-          
+
           taskContext += `When analyzing the screenshot, determine if the content is relevant to these tasks, especially the focus task if present.\n`;
           taskContext += `Higher priority tasks should be weighted more heavily in your analysis.\n`;
         }
@@ -254,7 +256,7 @@ async function captureAndAnalyze() {
             hasTasks: activeTasks.length > 0
           }),
         });
-        
+
         if (!response.ok) {
           if (response.status === 401 || response.status === 403) {
             // Authentication error - token might be expired
@@ -270,12 +272,12 @@ async function captureAndAnalyze() {
             });
             return;
           }
-          
+
           // Handle other API errors
           const errorData = await response.json().catch(() => ({}));
           throw new Error(`API error: ${response.status} - ${errorData.error || 'Unknown error'}`);
         }
-        
+
         console.log('Response received from backend:', response);
 
         if (!response.ok) {
@@ -289,44 +291,25 @@ async function captureAndAnalyze() {
         // Update productivity stats
         chrome.storage.local.get(['productivityStats'], (data) => {
           const stats = data.productivityStats || { productive: 0, unproductive: 0 };
+          console.log('Current stats:', stats);
+
           if (result.unproductive) {
             stats.unproductive++;
             console.log('Unproductive site detected. Updating stats.');
+
+            // Send notification
+            sendNotification(
+              'Distracting Site Detected',
+              `You're on a distracting site: ${tab.url}. Would you like to block it?`,
+              [
+                { title: 'Block' }
+              ]
+            );
+
+            console.log('Notification sent for unproductive site.');
           } else {
             stats.productive++;
             console.log('Productive site detected. Updating stats.');
-          }
-
-          if (result.unproductive) {
-            // Send notification
-            const message = focusedTask 
-              ? `${result.message || 'This content appears unrelated to your task'}. Your focus task is: ${focusedTask.title}`
-              : result.message || 'Consider switching to a more productive task.';
-              
-            chrome.notifications.create('', {
-              title: 'Low Productivity Detected',
-              message: message,
-              iconUrl: 'icon.jpg',
-              type: 'basic',
-            }, (notificationId) => {
-              if (chrome.runtime.lastError) {
-                console.error('Notification error:', chrome.runtime.lastError.message);
-              } else {
-                console.log('Notification created with ID:', notificationId);
-              }
-            });
-            
-            // Send message to content script for potential on-page reminders
-            chrome.tabs.sendMessage(tab.id, {
-              action: 'distractionDetected',
-              distractionInfo: {
-                domain: getDomain(tab.url),
-                url: tab.url,
-                focusTask: focusedTask ? focusedTask.title : null
-              }
-            }).catch(err => console.log('Content script not yet loaded:', err));
-            
-            console.log('Notification sent for unproductive site.');
           }
 
           chrome.storage.local.set({ productivityStats: stats });
@@ -339,7 +322,6 @@ async function captureAndAnalyze() {
     console.error('Capture error:', error);
   }
 }
-
 // Initial capture
 setTimeout(captureAndAnalyze, 5000);
 

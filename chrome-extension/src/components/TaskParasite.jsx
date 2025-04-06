@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 
 // Helper function to get priority color
@@ -20,6 +20,71 @@ export default function TaskParasite() {
   const [editingTaskId, setEditingTaskId] = useState(null);
   const [editTitle, setEditTitle] = useState('');
   const [editPriority, setEditPriority] = useState('Medium');
+  const [currentFocus, setCurrentFocus] = useState(null);
+
+
+  // Load tasks from Chrome storage on component mount
+  useEffect(() => {
+    if (chrome && chrome.storage) {
+      chrome.storage.local.get(['parasiteTasks', 'currentFocusParasite'], (result) => {
+        if (result.parasiteTasks) {
+          setTasks(result.parasiteTasks);
+        }
+        if (result.currentFocusParasite) {
+          setCurrentFocus(result.currentFocusParasite);
+        }
+      });
+
+      // Listen for changes to tasks in storage
+      const handleStorageChange = (changes, areaName) => {
+        if (areaName === 'local') {
+          if (changes.parasiteTasks) {
+            setTasks(changes.parasiteTasks.newValue);
+          }
+          if (changes.currentFocusParasite) {
+            setCurrentFocus(changes.currentFocusParasite.newValue);
+          }
+        }
+      };
+
+      chrome.storage.onChanged.addListener(handleStorageChange);
+      return () => {
+        chrome.storage.onChanged.removeListener(handleStorageChange);
+      };
+    }
+  }, []);
+
+
+  // Save tasks to Chrome storage and notify background script
+  const saveTasks = (updatedTasks) => {
+    if (chrome && chrome.storage) {
+      chrome.storage.local.set({ parasiteTasks: updatedTasks });
+      
+      // Notify background script about task changes for Gemini analysis
+      if (chrome && chrome.runtime) {
+        chrome.runtime.sendMessage({
+          action: 'updateParasiteTasks',
+          tasks: updatedTasks
+        });
+      }
+    }
+  };
+
+
+  // Save current focus task to Chrome storage
+  const saveCurrentFocus = (taskId) => {
+    if (chrome && chrome.storage) {
+      chrome.storage.local.set({ currentFocusParasite: taskId });
+      
+      // Notify background script about focus change
+      if (chrome && chrome.runtime) {
+        chrome.runtime.sendMessage({
+          action: 'updateCurrentFocusParasite',
+          currentFocus: taskId
+        });
+      }
+    }
+  };
 
 
   // Function to handle adding a new task
@@ -32,7 +97,9 @@ export default function TaskParasite() {
         priority: newPriority,
         completed: false, // newly created tasks are incomplete
       };
-      setTasks((prev) => [...prev, newTaskObject]);
+      const updatedTasks = [...tasks, newTaskObject];
+      setTasks(updatedTasks);
+      saveTasks(updatedTasks);
       setNewTask('');
     }
   };
@@ -40,7 +107,15 @@ export default function TaskParasite() {
 
   // Function to mark task as completed (using slider toggle) and delete task
   const handleToggleComplete = (taskId) => {
-    setTasks((prev) => prev.filter((t) => t.id !== taskId)); // Remove task when checked
+    const updatedTasks = tasks.filter((t) => t.id !== taskId); // Remove task when checked
+    setTasks(updatedTasks);
+    saveTasks(updatedTasks);
+    
+    // If completed task was the current focus, clear the focus
+    if (currentFocus === taskId) {
+      setCurrentFocus(null);
+      saveCurrentFocus(null);
+    }
   };
 
 
@@ -60,7 +135,15 @@ export default function TaskParasite() {
         : task
     );
     setTasks(updatedTasks);
+    saveTasks(updatedTasks);
     setEditingTaskId(null); // Close edit mode
+  };
+
+
+  // Function to set focus on a task
+  const handleSetFocus = (taskId) => {
+    setCurrentFocus(currentFocus === taskId ? null : taskId);
+    saveCurrentFocus(currentFocus === taskId ? null : taskId);
   };
 
 
@@ -117,6 +200,24 @@ export default function TaskParasite() {
       </div>
 
 
+      {/* Focus Task Info (if any) */}
+      {currentFocus && (
+        <div
+          style={{
+            backgroundColor: 'rgba(78, 42, 132, 0.2)',
+            padding: '10px',
+            marginBottom: '15px',
+            borderRadius: '8px',
+            border: '1px solid rgba(78, 42, 132, 0.5)'
+          }}
+        >
+          <p style={{ color: 'white', margin: 0 }}>
+            <strong>Currently Focusing On:</strong> {tasks.find(t => t.id === currentFocus)?.title}
+          </p>
+        </div>
+      )}
+
+
       {/* Task List */}
       {sortedTasks.map((task) => {
         const circleSize =
@@ -135,7 +236,7 @@ export default function TaskParasite() {
               border: '1px solid #fff',
               borderRadius: '8px',
               padding: '15px',
-              backgroundColor: 'rgba(255, 255, 255, 0.1)',
+              backgroundColor: currentFocus === task.id ? 'rgba(78, 42, 132, 0.3)' : 'rgba(255, 255, 255, 0.1)',
               justifyContent: 'space-between',
               maxWidth: '400px',
               margin: '0 auto',
@@ -163,6 +264,23 @@ export default function TaskParasite() {
                 Priority: {task.priority}
               </span>
             </div>
+
+
+            {/* Focus Button */}
+            <button
+              onClick={() => handleSetFocus(task.id)}
+              style={{
+                marginRight: '10px',
+                padding: '8px 16px',
+                backgroundColor: currentFocus === task.id ? '#8e5bd4' : '#4e2a84',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer',
+              }}
+            >
+              {currentFocus === task.id ? 'Unfocus' : 'Focus'}
+            </button>
 
 
             {/* Completion Toggle (Checkbox) */}

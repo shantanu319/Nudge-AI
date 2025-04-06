@@ -8,6 +8,12 @@ let isActive = true;
 // For screenshots at intervals
 let screenshotTimer = null;
 
+// Variables for handling tasks
+let userTasks = [];
+let currentFocusTask = null;
+let parasiteTasks = []; 
+let currentFocusParasite = null;
+
 // Message handling
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   // Dynamic website blocking
@@ -30,6 +36,18 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   } else if (request.action === 'toggleActive') {
     isActive = request.isActive;
     startScreenshotTimer();
+  } else if (request.action === 'updateTasks') {
+    userTasks = request.tasks;
+    console.log('Tasks updated:', userTasks);
+  } else if (request.action === 'updateCurrentFocus') {
+    currentFocusTask = request.currentFocus;
+    console.log('Current focus task updated:', currentFocusTask);
+  } else if (request.action === 'updateParasiteTasks') {
+    parasiteTasks = request.tasks;
+    console.log('Parasite tasks updated:', parasiteTasks);
+  } else if (request.action === 'updateCurrentFocusParasite') {
+    currentFocusParasite = request.currentFocus;
+    console.log('Current focus parasite task updated:', currentFocusParasite);
   }
 });
 
@@ -38,7 +56,11 @@ chrome.storage.local.get([
   'settings',
   'isActive',
   'productivityStats',
-  'blockedRules'
+  'blockedRules',
+  'tasks',
+  'currentFocus',
+  'parasiteTasks',
+  'currentFocusParasite'
 ], (result) => {
   // Load settings
   settings = result.settings || settings;
@@ -58,13 +80,29 @@ chrome.storage.local.get([
     });
   }
 
+  // Initialize tasks data from storage
+  if (result.tasks) {
+    userTasks = result.tasks;
+  }
+  if (result.currentFocus) {
+    currentFocusTask = result.currentFocus;
+  }
+  
+  // Initialize parasite tasks
+  if (result.parasiteTasks) {
+    parasiteTasks = result.parasiteTasks;
+  }
+  if (result.currentFocusParasite) {
+    currentFocusParasite = result.currentFocusParasite;
+  }
+
   startScreenshotTimer();
 });
 
 // Timer management
 // For domain-time tracking:
 let timeSpent = {};         // { 'www.example.com': totalMs, ... }
-let currentDomain = null;   // The domain we’re currently on
+let currentDomain = null;   // The domain we're currently on
 let domainStartTime = null; // Timestamp (ms) when we started currentDomain
 
 /********************************************************
@@ -105,7 +143,7 @@ chrome.storage.local.get(
     // Start the periodic screenshot timer
     startScreenshotTimer();
 
-    // Start the “real-time” domain usage tracking (1s interval)
+    // Start the "real-time" domain usage tracking (1s interval)
     startDomainTrackingTimer();
   }
 );
@@ -138,6 +176,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     isActive = message.isActive;
     console.log('Active state changed:', isActive);
     startScreenshotTimer(); // Start or stop timer based on active state
+  } else if (message.action === 'updateTasks') {
+    userTasks = message.tasks;
+    console.log('Tasks updated:', userTasks);
+  } else if (message.action === 'updateCurrentFocus') {
+    currentFocusTask = message.currentFocus;
+    console.log('Current focus task updated:', currentFocusTask);
   }
 });
 
@@ -165,6 +209,39 @@ async function captureAndAnalyze() {
       console.log('Screenshot captured successfully.');
 
       try {
+        // Combine tasks from both sources
+        const allTasks = [...userTasks, ...parasiteTasks];
+        
+        // Prepare task-related data for the analysis
+        let taskContext = '';
+        const activeTasks = allTasks.filter(task => !task.completed);
+        
+        // Check for focus tasks from either source
+        const focusedTask = userTasks.find(task => task.id === currentFocusTask) || 
+                            parasiteTasks.find(task => task.id === currentFocusParasite);
+        
+        // Format parasite tasks with priority info
+        const parasiteActiveTasks = parasiteTasks.filter(task => !task.completed);
+        
+        if (activeTasks.length > 0) {
+          // Start with regular tasks
+          if (userTasks.filter(task => !task.completed).length > 0) {
+            taskContext += `Active tasks:\n${userTasks.filter(task => !task.completed).map(t => `- ${t.title}`).join('\n')}\n\n`;
+          }
+          
+          // Add parasite tasks with priority
+          if (parasiteActiveTasks.length > 0) {
+            taskContext += `Active tasks with priority:\n${parasiteActiveTasks.map(t => `- ${t.title} (Priority: ${t.priority})`).join('\n')}\n\n`;
+          }
+          
+          if (focusedTask) {
+            taskContext += `Current focus task: ${focusedTask.title}${focusedTask.priority ? ` (Priority: ${focusedTask.priority})` : ''}\n\n`;
+          }
+          
+          taskContext += `When analyzing the screenshot, determine if the content is relevant to these tasks, especially the focus task if present.\n`;
+          taskContext += `Higher priority tasks should be weighted more heavily in your analysis.\n`;
+        }
+
         const response = await fetch('http://localhost:3001/analyze', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -173,6 +250,8 @@ async function captureAndAnalyze() {
             url: tab.url,
             title: tab.title,
             threshold: settings.threshold,
+            taskContext: taskContext,
+            hasTasks: activeTasks.length > 0
           }),
         });
         
@@ -197,7 +276,6 @@ async function captureAndAnalyze() {
           throw new Error(`API error: ${response.status} - ${errorData.error || 'Unknown error'}`);
         }
         
-
         console.log('Response received from backend:', response);
 
         if (!response.ok) {
@@ -221,9 +299,13 @@ async function captureAndAnalyze() {
 
           if (result.unproductive) {
             // Send notification
+            const message = focusedTask 
+              ? `${result.message || 'This content appears unrelated to your task'}. Your focus task is: ${focusedTask.title}`
+              : result.message || 'Consider switching to a more productive task.';
+              
             chrome.notifications.create('', {
               title: 'Low Productivity Detected',
-              message: result.message || 'Consider switching to a more productive task.',
+              message: message,
               iconUrl: 'icon.jpg',
               type: 'basic',
             }, (notificationId) => {
@@ -233,6 +315,17 @@ async function captureAndAnalyze() {
                 console.log('Notification created with ID:', notificationId);
               }
             });
+            
+            // Send message to content script for potential on-page reminders
+            chrome.tabs.sendMessage(tab.id, {
+              action: 'distractionDetected',
+              distractionInfo: {
+                domain: getDomain(tab.url),
+                url: tab.url,
+                focusTask: focusedTask ? focusedTask.title : null
+              }
+            }).catch(err => console.log('Content script not yet loaded:', err));
+            
             console.log('Notification sent for unproductive site.');
           }
 
@@ -262,7 +355,7 @@ function startDomainTrackingTimer() {
     const elapsed = now - domainStartTime; // ms
     timeSpent[currentDomain] = (timeSpent[currentDomain] || 0) + elapsed;
 
-    // Reset the start time to “now” so next second picks up from here
+    // Reset the start time to "now" so next second picks up from here
     domainStartTime = now;
 
     // Save to storage so the popup can see up-to-date data
@@ -275,7 +368,7 @@ function startDomainTrackingTimer() {
  ********************************************************/
 // Whenever user switches tabs
 chrome.tabs.onActivated.addListener(async (activeInfo) => {
-  // We finalize the old domain’s partial second right now
+  // We finalize the old domain's partial second right now
   finalizeCurrentDomain();
 
   try {

@@ -25,7 +25,7 @@ export function usePopup() {
         const handleStorageChange = (changes, areaName) => {
             if (areaName === 'local') {
                 if (changes.productivityStats) setStats(changes.productivityStats.newValue);
-                if (res.timeSpent) setDomainUsage(res.timeSpent);
+                if (changes.timeSpent) setDomainUsage(changes.timeSpent.newValue);
                 if (changes.settings) setSettings(changes.settings.newValue);
                 if (changes.isActive) setIsActive(changes.isActive.newValue);
             }

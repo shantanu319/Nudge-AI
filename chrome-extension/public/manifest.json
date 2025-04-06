@@ -10,9 +10,8 @@
     "windows",
     "scripting",
     "tabs",
-    "declarativeNetRequest", 
+    "declarativeNetRequest",
     "declarativeNetRequestWithHostAccess"
-
   ],
   "web_accessible_resources": [
     {

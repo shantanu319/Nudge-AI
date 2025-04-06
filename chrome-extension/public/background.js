@@ -112,7 +112,7 @@ chrome.storage.local.get([
   if (result.currentFocusParasite) {
     currentFocusParasite = result.currentFocusParasite;
   }
-  
+
   // Initialize recent analyses
   if (result.recentAnalyses) {
     recentAnalyses = result.recentAnalyses;
@@ -127,15 +127,21 @@ chrome.storage.local.get([
  * @returns {boolean} - Whether a notification should be shown
  */
 function determineIfShouldNotify(currentUrl) {
+  // Ensure settings.interventionStyle exists and is valid
+  if (!settings.interventionStyle || !INTERVENTION_THRESHOLDS[settings.interventionStyle]) {
+    settings.interventionStyle = 'drill_sergeant'; // Default to most aggressive style
+    chrome.storage.local.set({ settings }); // Save the default
+  }
+
   // Get the threshold for the current intervention style
   const threshold = INTERVENTION_THRESHOLDS[settings.interventionStyle] || 1;
-  
+
   // Get current domain
   const currentDomain = new URL(currentUrl).hostname;
-  
+
   // Get recent analyses for this domain
   const domainAnalyses = recentAnalyses.filter(analysis => analysis.domain === currentDomain);
-  
+
   // Count consecutive unproductive instances
   let consecutiveUnproductive = 0;
   for (const analysis of domainAnalyses) {
@@ -145,11 +151,11 @@ function determineIfShouldNotify(currentUrl) {
       break; // Break on first productive instance
     }
   }
-  
+
   // Log the current intervention status with friendly style name
   const styleName = settings.interventionStyle.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase());
   console.log(`${styleName} mode: ${consecutiveUnproductive}/${threshold} consecutive unproductive instances on ${currentDomain}`);
-  
+
   // Only notify if we have reached or exceeded the threshold
   return consecutiveUnproductive >= threshold;
 }
@@ -341,7 +347,7 @@ async function captureAndAnalyze() {
 
         const result = await response.json();
         console.log('Analysis result:', result);
-        
+
         // Add current analysis to history with timestamp and URL
         const currentAnalysis = {
           timestamp: new Date().getTime(),
@@ -351,7 +357,7 @@ async function captureAndAnalyze() {
           productivityScore: result.productivityScore,
           message: result.message
         };
-        
+
         // Add to beginning of array and maintain max size
         recentAnalyses.unshift(currentAnalysis);
         if (recentAnalyses.length > MAX_HISTORY_SIZE) {
@@ -369,7 +375,7 @@ async function captureAndAnalyze() {
 
             // Determine if we should show a notification based on intervention style
             const shouldNotify = determineIfShouldNotify(tab.url);
-            
+
             if (shouldNotify) {
               // Send notification
               sendNotification(
@@ -389,7 +395,7 @@ async function captureAndAnalyze() {
           }
 
           chrome.storage.local.set({ productivityStats: stats });
-          
+
           // Also save recent analyses to storage
           chrome.storage.local.set({ recentAnalyses });
         });

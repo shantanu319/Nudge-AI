@@ -3,8 +3,11 @@
   "name": "Nudge",
   "version": "1.0",
   "description": "A productivity extension that helps you stay focused",
-  "permissions": ["storage", "tabs", "webNavigation", "scripting"],
+  "permissions": ["storage", "tabs", "webNavigation", "scripting", "activeTab"],
   "host_permissions": ["<all_urls>"],
+  "content_security_policy": {
+    "extension_pages": "default-src 'self'; img-src 'self' data:;"
+  },
   "background": {
     "service_worker": "src/background.js",
     "type": "module"

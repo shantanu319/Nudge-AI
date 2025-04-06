@@ -1,7 +1,14 @@
 import React from 'react';
 import styles from './Settings.module.css';
 
-export default function Settings({ settings, onUpdateSettings, onSaveSettings, onClose }) {
+export default function Settings({ settings, onUpdateSettings, onClose }) {
+    const handleSettingChange = (updates) => {
+        onUpdateSettings({
+            ...settings,
+            ...updates
+        });
+    };
+
     return (
         <div className={styles.fullContainer}>
             <div className={styles.header}>
@@ -19,10 +26,7 @@ export default function Settings({ settings, onUpdateSettings, onSaveSettings, o
                         id="interval"
                         className={styles.select}
                         value={settings.interval}
-                        onChange={(e) => onUpdateSettings({
-                            ...settings,
-                            interval: Number(e.target.value)
-                        })}
+                        onChange={(e) => handleSettingChange({ interval: Number(e.target.value) })}
                     >
                         <option value={0.1}>0.1</option>
                         <option value={1}>1</option>
@@ -42,10 +46,7 @@ export default function Settings({ settings, onUpdateSettings, onSaveSettings, o
                         id="interventionStyle"
                         className={styles.select}
                         value={settings.interventionStyle}
-                        onChange={(e) => onUpdateSettings({
-                            ...settings,
-                            interventionStyle: e.target.value
-                        })}
+                        onChange={(e) => handleSettingChange({ interventionStyle: e.target.value })}
                     >
                         <option value="drill_sergeant">Drill Sergeant</option>
                         <option value="vigilant_mentor">Vigilant Mentor</option>
@@ -54,10 +55,6 @@ export default function Settings({ settings, onUpdateSettings, onSaveSettings, o
                         <option value="zen_observer">Zen Observer</option>
                     </select>
                 </div>
-
-                <button className={styles.saveButton} onClick={onSaveSettings}>
-                    Save Settings
-                </button>
             </div>
         </div>
     );

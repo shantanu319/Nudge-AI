@@ -15,7 +15,6 @@ export default function Popup() {
         settings,
         isActive,
         toggleActive,
-        saveSettings,
         updateSettings
     } = usePopup();
 
@@ -37,7 +36,6 @@ export default function Popup() {
                 <Settings
                     settings={settings}
                     onUpdateSettings={updateSettings}
-                    onSaveSettings={saveSettings}
                     onClose={() => setShowSettings(false)}
                 />
             ) : (

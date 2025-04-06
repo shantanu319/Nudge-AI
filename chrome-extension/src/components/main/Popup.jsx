@@ -43,19 +43,23 @@ export default function Popup() {
                         <div className={styles.titleContainer}>
                             <h1 className={styles.title}>Nudge</h1>
                             <div className={styles.statusContainer}>
-                                <span className={styles.status}>{isActive ? 'Active' : 'Paused'}</span>
-                                <button
-                                    className={`${styles.toggleButton} ${isActive ? styles.active : ''}`}
-                                    onClick={toggleActive}
-                                    dangerouslySetInnerHTML={{ __html: isActive ? getIcon('pause') : getIcon('play') }}
-                                />
+                                <span className={`${styles.status} ${!isActive ? styles.inactive : ''}`}>
+                                    {isActive ? 'Active' : 'Paused'}
+                                </span>
                             </div>
                         </div>
-                        <button
-                            className={styles.settingsButton}
-                            onClick={() => setShowSettings(true)}
-                            dangerouslySetInnerHTML={{ __html: getIcon('settings') }}
-                        />
+                        <div className={styles.controls}>
+                            <button
+                                className={`${styles.toggleButton} ${isActive ? styles.active : ''}`}
+                                onClick={toggleActive}
+                                dangerouslySetInnerHTML={{ __html: isActive ? getIcon('pause') : getIcon('play') }}
+                            />
+                            <button
+                                className={styles.settingsButton}
+                                onClick={() => setShowSettings(true)}
+                                dangerouslySetInnerHTML={{ __html: getIcon('settings') }}
+                            />
+                        </div>
                     </div>
 
                     <div className={styles.tabs}>

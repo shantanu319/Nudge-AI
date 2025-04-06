@@ -40,7 +40,6 @@ function priorityValue(p) {
  * - Low: lightest purple
  ********************************************************/
 function getPriorityColor(priority) {
-  // Base #4E2A84 => ~hsl(262, 52%, ?)
   if (priority === 'High') {
     return 'hsl(262, 52%, 29%)'; // darkest
   } else if (priority === 'Medium') {
@@ -79,7 +78,7 @@ export default function TaskParasite() {
   // Current time (minutes from midnight)
   const [timeNow, setTimeNow] = useState(getMinutesSinceMidnight(new Date()));
 
-  // For editing a task:
+  // For editing a task
   const [editingTaskId, setEditingTaskId] = useState(null);
   const [editTitle, setEditTitle] = useState('');
   const [editPriority, setEditPriority] = useState('Medium');
@@ -126,6 +125,7 @@ export default function TaskParasite() {
       globalId: getGlobalTaskId(), // not shown in UI
       title: trimmed,
       priority,
+      completed: false,  // newly created tasks are incomplete
     };
 
     setTasks([...tasks, newTask]);
@@ -141,38 +141,52 @@ export default function TaskParasite() {
   };
 
   /********************************************************
-   * 6) SORT + FILTER
+   * 6) Mark a task as completed (slider toggled)
+   *    This effectively removes it from the main view.
+   ********************************************************/
+  const handleToggleComplete = (taskId) => {
+    setTasks((prev) =>
+      prev.map((t) =>
+        t.id === taskId ? { ...t, completed: !t.completed } : t
+      )
+    );
+  };
+
+  /********************************************************
+   * 7) SORT + FILTER
+   *    Also hide tasks that are "completed" from main view
    ********************************************************/
   const sortedTasks = [...tasks].sort((a, b) => priorityValue(b.priority) - priorityValue(a.priority));
   const displayedTasks = sortedTasks.filter((task) => {
+    // Hide completed tasks from the view
+    if (task.completed) return false;
+
+    // Filter by priority
     if (filter === 'All') return true;
     return task.priority === filter;
   });
 
   /********************************************************
-   * 7) Circle size logic
+   * 8) Circle size logic
    ********************************************************/
   const totalDayMinutes = totalMinutesInDay(); // 1440
   const dayRatio = Math.min(timeNow / totalDayMinutes, 1); // 0..1
 
   /********************************************************
-   * 8) EDITING LOGIC
+   * 9) EDITING LOGIC
    ********************************************************/
-  // Start editing a specific task
   const startEditing = (task) => {
     setEditingTaskId(task.id);
     setEditTitle(task.title);
     setEditPriority(task.priority);
   };
 
-  // Save changes
   const saveEdit = (taskId) => {
     const trimmed = editTitle.trim();
     if (!trimmed) {
-      // If empty, ignore or remove the task. We'll just do nothing here
+      // If empty, do nothing or remove it
       return;
     }
-
     setTasks((prev) =>
       prev.map((t) =>
         t.id === taskId ? { ...t, title: trimmed, priority: editPriority } : t
@@ -239,14 +253,13 @@ export default function TaskParasite() {
 
         const isEditing = editingTaskId === task.id;
 
-        // If editing, show the inline form
+        // If editing, show inline form
         if (isEditing) {
           return (
             <div
               key={task.id}
               style={{ display: 'flex', alignItems: 'center', marginBottom: '0.5rem' }}
             >
-              {/* Circle is based on the "editPriority" if we want it to update live */}
               <div
                 style={{
                   ...circleStyle,
@@ -280,18 +293,34 @@ export default function TaskParasite() {
           );
         }
 
-        // Otherwise, show normal display
+        // Otherwise normal display
         return (
           <div
             key={task.id}
             style={{ display: 'flex', alignItems: 'center', marginBottom: '0.5rem' }}
           >
+            {/* Circle */}
             <div style={circleStyle} />
+
+            {/* Title + Priority */}
             <div style={{ flex: 1 }}>
               <strong>{task.title}</strong>
               <br />
               Priority: {task.priority}
             </div>
+
+            {/* Complete Slider */}
+            <label style={{ marginRight: '0.5rem', display: 'flex', alignItems: 'center' }}>
+              <span style={{ marginRight: '0.5rem' }}>Done</span>
+              <input
+                type="checkbox"
+                checked={task.completed}
+                onChange={() => handleToggleComplete(task.id)}
+                style={{ transform: 'scale(1.5)', cursor: 'pointer' }}
+              />
+            </label>
+
+            {/* Edit & Remove Buttons */}
             <button onClick={() => startEditing(task)} style={{ marginRight: '0.5rem' }}>
               Edit
             </button>

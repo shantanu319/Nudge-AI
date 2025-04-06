@@ -75,7 +75,7 @@ export default function Popup() {
                             onClick={() => setActiveTab('focus')}
                         >
                             <span dangerouslySetInnerHTML={{ __html: getIcon('lock') }} />
-                            <span>Blocking</span>
+                            <span>Block</span>
                         </button>
                         <button
                             className={`${styles.tab} ${activeTab === 'analytics' ? styles.active : ''}`}

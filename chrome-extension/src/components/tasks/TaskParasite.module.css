@@ -129,3 +129,20 @@
   text-decoration: line-through;
   color: var(--color-text-light);
 }
+
+.completedSection {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.completedTitle {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #718096;
+  margin-bottom: 0.75rem;
+}
+
+.tasksSection {
+  margin-bottom: 1rem;
+}

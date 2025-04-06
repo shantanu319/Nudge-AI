@@ -1,3 +1,5 @@
+import { sendNotification } from './notifications.js';
+
 let currentRules = [];
 
 let settings = {
@@ -190,29 +192,25 @@ async function captureAndAnalyze() {
         // Update productivity stats
         chrome.storage.local.get(['productivityStats'], (data) => {
           const stats = data.productivityStats || { productive: 0, unproductive: 0 };
+          console.log('Current stats:', stats);
+
           if (result.unproductive) {
             stats.unproductive++;
             console.log('Unproductive site detected. Updating stats.');
+
+            // Send notification
+            sendNotification(
+              'Distracting Site Detected',
+              `You're on a distracting site: ${tab.url}. Would you like to block it?`,
+              [
+                { title: 'Block' }
+              ]
+            );
+
+            console.log('Notification sent for unproductive site.');
           } else {
             stats.productive++;
             console.log('Productive site detected. Updating stats.');
-          }
-
-          if (result.unproductive) {
-            // Send notification
-            chrome.notifications.create('', {
-              title: 'Low Productivity Detected',
-              message: result.message || 'Consider switching to a more productive task.',
-              iconUrl: 'icon.jpg',
-              type: 'basic',
-            }, (notificationId) => {
-              if (chrome.runtime.lastError) {
-                console.error('Notification error:', chrome.runtime.lastError.message);
-              } else {
-                console.log('Notification created with ID:', notificationId);
-              }
-            });
-            console.log('Notification sent for unproductive site.');
           }
 
           chrome.storage.local.set({ productivityStats: stats });
@@ -225,7 +223,6 @@ async function captureAndAnalyze() {
     console.error('Capture error:', error);
   }
 }
-
 // Initial capture
 setTimeout(captureAndAnalyze, 5000);
 

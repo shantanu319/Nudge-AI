@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { blockWebsite } from '../../public/blockUtils.js';
 
 const Block = () => {
     const [blockList, setBlockList] = useState([]);
@@ -11,6 +12,20 @@ const Block = () => {
                 setBlockList(result.blockedSites);
             }
         });
+
+        // Listen for block list updates from the service worker
+        const handleMessage = (message) => {
+            if (message.action === 'blockListUpdated') {
+                setBlockList(message.blockList);
+            }
+        };
+
+        chrome.runtime.onMessage.addListener(handleMessage);
+
+        // Cleanup listener on unmount
+        return () => {
+            chrome.runtime.onMessage.removeListener(handleMessage);
+        };
     }, []);
 
     // Automatically update rules when blocklist changes
@@ -19,6 +34,7 @@ const Block = () => {
         chrome.storage.local.set({ blockedSites: blockList });
     }, [blockList]);
 
+    // Update block rules
     const updateBlockRules = () => {
         const rules = blockList.map((url, index) => ({
             id: index + 1,
@@ -26,26 +42,26 @@ const Block = () => {
             action: { type: 'block' },
             condition: {
                 urlFilter: `||${url.replace(/https?:\/\//, '')}`,
-                resourceTypes: ['main_frame']
-            }
+                resourceTypes: ['main_frame'],
+            },
         }));
 
         chrome.runtime.sendMessage({
             action: 'updateBlockedSites',
-            rules
+            rules,
         });
     };
 
     const handleAddUrl = (e) => {
         e.preventDefault();
         if (newUrl.trim()) {
-            setBlockList(prev => [...prev, newUrl.trim()]);
+            blockWebsite(newUrl.trim()); // Use the helper function
             setNewUrl('');
         }
     };
 
     const handleRemoveUrl = (urlToRemove) => {
-        setBlockList(prev => prev.filter(url => url !== urlToRemove));
+        setBlockList((prev) => prev.filter((url) => url !== urlToRemove));
     };
 
     return (

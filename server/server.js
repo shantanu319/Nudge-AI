@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import fetch from 'node-fetch';
-import fs from 'fs';
+// import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -12,18 +12,45 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Get directory name in ES module
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// Auth0 configuration
+// const jwtCheck = auth({
+//   audience: 'https://productivity-nudge-api',
+//   issuerBaseURL: 'https://dev-hjpjgqsdagc2hvh0.us.auth0.com/',
+//   tokenSigningAlg: 'RS256'
+// });
 
-// Middleware
-app.use(cors());
+// // Get directory name in ES module
+// const __filename = fileURLToPath(import.meta.url);
+// const __dirname = path.dirname(__filename);
+
+// // Middleware
+app.use(cors({
+  origin: '*', // Allows all origins for Chrome extension
+  methods: ['GET', 'POST'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(express.json({ limit: '50mb' })); // Increase limit for image data
+
+// // Public routes
+// app.get('/health', (req, res) => {
+//   res.json({ status: 'ok' });
+// });
+
+// // Protected routes - requires authentication
+// app.use('/api', jwtCheck);
+
+// // User profile endpoint
+// app.get('/api/profile', (req, res) => {
+//   res.json({
+//     userId: req.auth.sub,
+//     message: 'Profile information retrieved successfully'
+//   });
+// });
 
 // Google Gemini API endpoint (using the latest recommended model for vision)
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent';
 // Add your API key directly here
-const API_KEY = 'AIzaSyDIJmvCa8bkonKAWrgodywFa4INAWMADwM'; // Replace with your actual API key
+const API_KEY = 'AIzaSyDIJmvCa8bkonKAWrgodywFa4INAWMADwM'; //
 
 
 
@@ -206,7 +233,7 @@ app.post('/analyze', async (req, res) => {
     }
     
     // Make sure the score is a number between 0-100
-    analysis.productivityScore = Math.max(0, Math.min(100, parseInt(analysis.productivityScore) || 50));
+    analysis.productivityScore = Math.max(-1, Math.min(100, parseInt(analysis.productivityScore) || 50));
     
     // Determine if the behavior is unproductive based on threshold
     const unproductive = analysis.productivityScore < threshold;

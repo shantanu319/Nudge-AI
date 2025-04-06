@@ -17,6 +17,7 @@ export default function Settings({ settings, onUpdateSettings, onSaveSettings })
                         interval: Number(e.target.value)
                     })}
                 >
+                    <option value={0.1}>0.1</option>
                     <option value={1}>1</option>
                     <option value={3}>3</option>
                     <option value={5}>5</option>
@@ -27,25 +28,24 @@ export default function Settings({ settings, onUpdateSettings, onSaveSettings })
             </div>
 
             <div className={styles.settingRow}>
-                <label htmlFor="threshold" className={styles.label}>
-                    Productivity Threshold:
+                <label htmlFor="interventionStyle" className={styles.label}>
+                    Focus Guardian Style:
                 </label>
-                <div className={styles.sliderContainer}>
-                    <input
-                        type="range"
-                        id="threshold"
-                        className={styles.slider}
-                        min="10"
-                        max="90"
-                        step="5"
-                        value={settings.threshold}
-                        onChange={(e) => onUpdateSettings({
-                            ...settings,
-                            threshold: Number(e.target.value)
-                        })}
-                    />
-                    <span className={styles.value}>{settings.threshold}%</span>
-                </div>
+                <select
+                    id="interventionStyle"
+                    className={styles.select}
+                    value={settings.interventionStyle}
+                    onChange={(e) => onUpdateSettings({
+                        ...settings,
+                        interventionStyle: e.target.value
+                    })}
+                >
+                    <option value="drill_sergeant">Drill Sergeant</option>
+                    <option value="vigilant_mentor">Vigilant Mentor</option>
+                    <option value="steady_coach">Steady Coach</option>
+                    <option value="patient_guide">Patient Guide</option>
+                    <option value="zen_observer">Zen Observer</option>
+                </select>
             </div>
 
             <button className={styles.saveButton} onClick={onSaveSettings}>

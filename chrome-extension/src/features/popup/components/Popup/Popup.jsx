@@ -16,7 +16,8 @@ export default function Popup() {
         isActive,
         toggleActive,
         saveSettings,
-        updateSettings
+        updateSettings,
+        resetStats
     } = usePopup();
 
     return (
@@ -43,7 +44,7 @@ export default function Popup() {
 
                 <div className={styles.section}>
                     <h3 className={styles.sectionTitle}>Activity</h3>
-                    <ActivitySummary stats={stats} />
+                    <ActivitySummary stats={stats} onResetStats={resetStats} />
                 </div>
 
                 <div className={styles.section}>

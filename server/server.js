@@ -12,17 +12,6 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Auth0 configuration
-// const jwtCheck = auth({
-//   audience: 'https://productivity-nudge-api',
-//   issuerBaseURL: 'https://dev-hjpjgqsdagc2hvh0.us.auth0.com/',
-//   tokenSigningAlg: 'RS256'
-// });
-
-// // Get directory name in ES module
-// const __filename = fileURLToPath(import.meta.url);
-// const __dirname = path.dirname(__filename);
-
 // // Middleware
 app.use(cors({
   origin: '*', // Allows all origins for Chrome extension
@@ -31,26 +20,32 @@ app.use(cors({
 }));
 app.use(express.json({ limit: '50mb' })); // Increase limit for image data
 
-// // Public routes
-// app.get('/health', (req, res) => {
-//   res.json({ status: 'ok' });
-// });
-
-// // Protected routes - requires authentication
-// app.use('/api', jwtCheck);
-
-// // User profile endpoint
-// app.get('/api/profile', (req, res) => {
-//   res.json({
-//     userId: req.auth.sub,
-//     message: 'Profile information retrieved successfully'
-//   });
-// });
-
 // Google Gemini API endpoint (using the latest recommended model for vision)
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent';
 // Add your API key directly here
 const API_KEY = 'AIzaSyDIJmvCa8bkonKAWrgodywFa4INAWMADwM'; //
+
+/**
+ * Returns a description of the intervention style for the Gemini prompt
+ * @param {string} style - The intervention style
+ * @returns {string} - A description of how to evaluate productivity
+ */
+function getInterventionStyleDescription(style) {
+  switch(style) {
+    case 'drill_sergeant':
+      return 'very strict productivity evaluation, flag even minor distractions';
+    case 'vigilant_mentor':
+      return 'strict productivity evaluation with minimal tolerance for distractions';
+    case 'steady_coach':
+      return 'balanced productivity evaluation, moderate tolerance for brief distractions';
+    case 'patient_guide':
+      return 'lenient productivity evaluation, higher tolerance for distractions';
+    case 'zen_observer':
+      return 'very lenient productivity evaluation, only flag significant distractions';
+    default:
+      return 'balanced productivity evaluation';
+  }
+}
 
 
 
@@ -74,22 +69,25 @@ app.post('/analyze', async (req, res) => {
     // Extract base64 data from data URL
     const base64Data = image.split(',')[1];
     
+    // Get task information from request if available
+    const { taskContext, hasTasks, interventionStyle } = req.body;
+    
     // Prepare request to Gemini API
     const payload = {
       contents: [
         {
           parts: [
             {
-              text: `Analyze this screenshot from ${title} (${url}) and determine if the user is being productive or distracted. Provide a productivity score between 0-100 where higher means more productive. Use these criteria:\n
+              text: `Analyze this screenshot from ${title} (${url}) and determine if the user is being productive or distracted. Provide a productivity score between 0-100 where higher means more productive.\n\n${hasTasks ? `The user has the following tasks to work on:\n${taskContext}\n` : ''}${interventionStyle ? `User has selected "${interventionStyle.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase())}" focus guardian style (${getInterventionStyleDescription(interventionStyle)}).\n\n` : ''}Use these criteria:\n
               1. Is this work/study related content?\n
-              2. Is this something that might be distracting the user from work?\n
-              3. Does this appear to be social media, entertainment, or games?\n
-              A score below ${threshold || 50} is considered unproductive.\n
+              2. Is this something that might be distracting the user from work?\n${hasTasks ? `              3. Is the content relevant to any of the user's tasks, especially the focus task?\n              4. For tasks with higher intensity/priority or less time remaining, content relevance is more important.\n` : ''}
+              ${!hasTasks ? '3' : '5'}. Does this appear to be social media, entertainment, or games?\n
+              A score below ${threshold || 50} is considered unproductive.\n${hasTasks ? '\nConsider both general productivity AND specific task relevance in your assessment. Content that directly relates to active tasks should receive a higher score, with more weight given to urgent (less time left) and important (higher intensity) tasks.\n' : ''}\n
               Return ONLY a JSON object with these fields:\n
               {\n
                 "productivityScore": number between 0-100,\n
-                "unproductive": boolean based on threshold,\n
-                "message": a one-line message if unproductive, explaining why\n
+                "unproductive": boolean based on threshold,\n${hasTasks ? '                "relevantTasks": array of task titles that this content is relevant to,\n' : ''}
+                "message": a one-line message ${hasTasks ? 'explaining the relevance to tasks or ' : ''}if unproductive, explaining why\n
               }\n`
             },
             {

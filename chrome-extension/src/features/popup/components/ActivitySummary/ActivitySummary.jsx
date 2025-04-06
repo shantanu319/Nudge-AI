@@ -6,7 +6,7 @@ import styles from './ActivitySummary.module.css';
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 
-export default function ActivitySummary({ stats }) {
+export default function ActivitySummary({ stats, onResetStats }) {
     const totalSessions = stats.productive + stats.unproductive;
 
     const chartData = {
@@ -31,7 +31,30 @@ export default function ActivitySummary({ stats }) {
         <div className={styles.container}>
             <div className={styles.chartContainer}>
                 {totalSessions > 0 ? (
-                    <Pie data={chartData} options={chartOptions} />
+                    <>
+                        <Pie data={chartData} options={chartOptions} />
+                        <div className={styles.statsDetails}>
+                            <div className={styles.statItem}>
+                                <span className={styles.statLabel}>Total Sessions:</span>
+                                <span className={styles.statValue}>{totalSessions}</span>
+                            </div>
+                            <div className={styles.statItem}>
+                                <span className={styles.statLabel}>Productive:</span>
+                                <span className={styles.statValue}>
+                                    {stats.productive} ({Math.round((stats.productive / totalSessions) * 100)}%)
+                                </span>
+                            </div>
+                            <div className={styles.statItem}>
+                                <span className={styles.statLabel}>Unproductive:</span>
+                                <span className={styles.statValue}>
+                                    {stats.unproductive} ({Math.round((stats.unproductive / totalSessions) * 100)}%)
+                                </span>
+                            </div>
+                            <button className={styles.resetButton} onClick={onResetStats}>
+                                Reset Stats
+                            </button>
+                        </div>
+                    </>
                 ) : (
                     <p className={styles.noData}>No activity data yet.</p>
                 )}

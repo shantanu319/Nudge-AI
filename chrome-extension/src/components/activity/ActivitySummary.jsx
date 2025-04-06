@@ -13,7 +13,7 @@ export default function ActivitySummary({ stats }) {
         labels: ['Productive', 'Unproductive'],
         datasets: [{
             data: [stats.productive, stats.unproductive],
-            backgroundColor: ['var(--color-success)', 'var(--color-inactive)'],
+            backgroundColor: ['red', 'var(--color-inactive)'],
             borderColor: ['var(--color-primary)', 'var(--color-secondary)'],
             borderWidth: 1,
         }],
@@ -40,7 +40,7 @@ export default function ActivitySummary({ stats }) {
                             </div>
                             <div className={styles.statItem}>
                                 <span className={styles.statLabel}>Productive:</span>
-                                <span className={styles.statValue}>
+                                <span className={styles.statValue} style={{ color: 'red' }}>
                                     {stats.productive} ({Math.round((stats.productive / totalSessions) * 100)}%)
                                 </span>
                             </div>

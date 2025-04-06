@@ -11,11 +11,13 @@
   background-color: #f8f9fa;
 }
 
+
 h2,
 h3 {
   color: #333;
   margin-top: 0;
 }
+
 
 .container {
   padding: 15px;
@@ -24,6 +26,7 @@ h3 {
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
 }
 
+
 .stats-container {
   margin: 15px 0;
   padding: 10px;
@@ -31,13 +34,16 @@ h3 {
   background-color: #f1f8ff;
 }
 
+
 .settings-container {
   margin-top: 20px;
 }
 
+
 .web-blocking-container {
   margin-top: 20px;
 }
+
 
 button {
   background-color: #4285f4;
@@ -49,9 +55,11 @@ button {
   font-weight: 500;
 }
 
+
 button:hover {
   background-color: #3367d6;
 }
+
 
 .setting-row {
   display: flex;
@@ -60,12 +68,14 @@ button:hover {
   margin-bottom: 10px;
 }
 
+
 select,
 input {
   padding: 5px;
   border-radius: 4px;
   border: 1px solid #ccc;
 } */
+
 
 /* Base styles */
 html {
@@ -75,6 +85,7 @@ html {
   overflow-x: hidden;
   border-radius: 15px;
 }
+
 
 body {
   margin: 0;
@@ -91,6 +102,7 @@ body {
   overflow: hidden;
 }
 
+
 /* Glassmorphism container */
 .glassmorphism-container {
   width: 100%;
@@ -99,6 +111,7 @@ body {
   border-radius: 15px;
   overflow: hidden;
 }
+
 
 /* Glass card base style */
 .glass-card {
@@ -114,16 +127,19 @@ body {
   overflow: hidden;
 }
 
+
 .glass-card:hover {
   box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.3);
   border: 1px solid rgba(255, 255, 255, 0.4);
   transform: translateY(-2px);
 }
 
+
 /* Main container */
 .main-card {
   padding: 25px;
 }
+
 
 /* Typography */
 .glass-title {
@@ -135,6 +151,7 @@ body {
   text-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
 }
 
+
 .section-title {
   color: rgba(255, 255, 255, 0.9);
   font-size: 1.3rem;
@@ -142,6 +159,7 @@ body {
   border-bottom: 1px solid rgba(255, 255, 255, 0.2);
   padding-bottom: 8px;
 }
+
 
 /* Status container */
 .status-container {
@@ -154,9 +172,11 @@ body {
   border-radius: 10px;
 }
 
+
 .status-label {
   font-size: 1.1rem;
 }
+
 
 /* Buttons */
 .glass-button {
@@ -173,18 +193,22 @@ body {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
+
 .glass-button:hover {
   background: rgba(255, 255, 255, 0.25);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
+
 .glass-button.active {
   background: rgba(75, 192, 192, 0.4);
 }
 
+
 .glass-button.inactive {
   background: rgba(255, 99, 132, 0.4);
 }
+
 
 .reset-button, .save-button {
   margin-top: 15px;
@@ -192,10 +216,12 @@ body {
   padding: 10px;
 }
 
+
 /* Chart styles */
 .chart-card {
   padding-bottom: 25px;
 }
+
 
 .chart-container {
   width: 180px;
@@ -204,9 +230,11 @@ body {
   position: relative;
 }
 
+
 .stats-details {
   margin-top: 20px;
 }
+
 
 .stat-item {
   display: flex;
@@ -217,13 +245,16 @@ body {
   border-radius: 8px;
 }
 
+
 .stat-label {
   font-weight: 500;
 }
 
+
 .stat-value {
   font-weight: 600;
 }
+
 
 /* Settings styles */
 .setting-row {
@@ -236,15 +267,18 @@ body {
   border-radius: 8px;
 }
 
+
 .slider-row {
   flex-direction: column;
   align-items: flex-start;
 }
 
+
 .setting-label {
   margin-bottom: 8px;
   font-weight: 500;
 }
+
 
 .slider-container {
   width: 100%;
@@ -252,6 +286,7 @@ body {
   align-items: center;
   gap: 10px;
 }
+
 
 .glass-select {
   background: rgba(255, 255, 255, 0.2);
@@ -265,6 +300,7 @@ body {
   outline: none;
 }
 
+
 .glass-slider {
   /* -webkit-appearance: none; */
   width: 100%;
@@ -273,6 +309,7 @@ body {
   background: rgba(255, 255, 255, 0.3);
   outline: none;
 }
+
 
 .glass-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
@@ -285,11 +322,13 @@ body {
   box-shadow: 0 0 8px rgba(0, 0, 0, 0.3);
 }
 
+
 .threshold-value {
   font-weight: 600;
   min-width: 40px;
   text-align: right;
 }
+
 
 /* Table styles */
 .table-container {
@@ -299,6 +338,7 @@ body {
   overflow-y: auto;
 }
 
+
 .glass-table {
   width: 100%;
   border-collapse: separate;
@@ -307,12 +347,14 @@ body {
   border-radius: 8px;
 }
 
+
 .glass-table th,
 .glass-table td {
   padding: 10px 15px;
   text-align: left;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
+
 
 .glass-table th {
   background: rgba(255, 255, 255, 0.2);
@@ -322,15 +364,18 @@ body {
   z-index: 10;
 }
 
+
 .glass-table tr:hover {
   background: rgba(255, 255, 255, 0.1);
 }
+
 
 .time-cell {
   text-align: right;
   font-family: monospace;
   font-size: 1.1em;
 }
+
 
 .no-data {
   text-align: center;
@@ -339,27 +384,33 @@ body {
   font-style: italic;
 }
 
+
 /* Animation for cards */
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
+
 .glass-card {
   animation: fadeIn 0.5s ease forwards;
 }
+
 
 .chart-card {
   animation-delay: 0.1s;
 }
 
+
 .settings-card {
   animation-delay: 0.2s;
 }
 
+
 .domain-card {
   animation-delay: 0.3s;
 }
+
 
 .blocking-card {
   animation-delay: 0.4s;

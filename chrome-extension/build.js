@@ -1,4 +1,3 @@
-// filepath: /Users/Lucas/Desktop/Dev/wildhacks2025/chrome-extension/build.js
 const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');

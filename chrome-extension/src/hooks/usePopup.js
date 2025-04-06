@@ -53,10 +53,15 @@ export function usePopup() {
         setSettings(newSettings);
     };
 
-    const resetStats = () => {
-        const resetValue = { productive: 0, unproductive: 0 };
-        setStats(resetValue);
-        chrome.storage.local.set({ productivityStats: resetValue });
+    const updateStats = (isProductive) => {
+        const newStats = { ...stats };
+        if (isProductive) {
+            newStats.productive += 1;
+        } else {
+            newStats.unproductive += 1;
+        }
+        setStats(newStats);
+        chrome.storage.local.set({ stats: newStats });
     };
 
     return {
@@ -67,6 +72,6 @@ export function usePopup() {
         toggleActive,
         saveSettings,
         updateSettings,
-        resetStats
+        updateStats
     };
 } 

@@ -1,9 +1,9 @@
 import React from 'react';
 import { useTaskList } from '../../hooks/useTaskList';
-import EmptyState from '../EmptyState/EmptyState';
-import LoadingSpinner from '../LoadingSpinner/LoadingSpinner';
 import TaskInput from '../TaskInput/TaskInput';
 import TaskItem from '../TaskItem/TaskItem';
+import EmptyState from './EmptyState/EmptyState';
+import LoadingSpinner from './LoadingSpinner';
 import styles from './TaskList.module.css';
 
 export default function TaskList() {

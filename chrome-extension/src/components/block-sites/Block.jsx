@@ -1,8 +1,8 @@
 import React from 'react';
 import { useWebsiteBlocking } from '../../hooks/useWebsiteBlocking';
-import BlockList from '../BlockList/BlockList';
-import URLInput from '../URLInput/URLInput';
 import styles from './Block.module.css';
+import BlockList from './BlockList';
+import URLInput from './URLInput';
 
 export default function Block() {
     const {

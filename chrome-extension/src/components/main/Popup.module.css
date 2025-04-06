@@ -1,0 +1,154 @@
+@import "../../styles/colors.css";
+
+.container {
+  width: 400px;
+  min-height: 500px;
+  padding: 16px;
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
+}
+
+.card {
+  background: var(--color-bg-secondary);
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  border-bottom: 1px solid var(--color-border-light);
+}
+
+.titleContainer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.title {
+  font-size: 24px;
+  font-weight: 600;
+  margin: 0;
+  color: var(--color-text-primary);
+}
+
+.statusContainer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+}
+
+.toggleButton {
+  padding: 4px 8px;
+  border: none;
+  border-radius: 4px;
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-primary);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.toggleButton:hover {
+  background: var(--color-hover);
+}
+
+.toggleButton.active {
+  background: var(--color-primary);
+  color: white;
+}
+
+.settingsButton {
+  background: none;
+  border: none;
+  width: 24px;
+  height: 24px;
+  padding: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: var(--color-text-secondary);
+}
+
+.settingsButton:hover {
+  color: var(--color-primary);
+}
+
+.settingsButton svg {
+  width: 16px;
+  height: 16px;
+  stroke-width: 2;
+}
+
+.tabs {
+  display: flex;
+  border-bottom: 1px solid var(--color-border-light);
+}
+
+.tab {
+  flex: 1;
+  padding: 12px;
+  border: none;
+  background: none;
+  color: var(--color-text-secondary);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.tab:hover {
+  background: var(--color-hover);
+}
+
+.tab.active {
+  color: var(--color-primary);
+  border-bottom: 2px solid var(--color-primary);
+}
+
+.tab svg {
+  width: 16px;
+  height: 16px;
+  stroke-width: 2;
+}
+
+.content {
+  padding: 16px;
+}
+
+.section {
+  margin-bottom: 24px;
+}
+
+.section:last-child {
+  margin-bottom: 0;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border-light);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-secondary);
+}

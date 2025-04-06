@@ -1,8 +1,8 @@
 import React from 'react';
 import { useTaskManagement } from '../../hooks/useTaskManagement';
-import FocusIndicator from '../FocusIndicator/FocusIndicator';
-import TaskForm from '../TaskForm/TaskForm';
-import TaskItem from '../TaskItem/TaskItem';
+import FocusIndicator from './FocusIndicator';
+import TaskForm from './TaskForm';
+import TaskItem from './TaskItem';
 import styles from './TaskParasite.module.css';
 
 export default function TaskParasite() {

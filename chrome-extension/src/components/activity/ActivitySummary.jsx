@@ -1,12 +1,12 @@
 import { ArcElement, Chart as ChartJS, Legend, Tooltip } from 'chart.js';
 import React from 'react';
 import { Pie } from 'react-chartjs-2';
-import '../../../../styles/colors.css';
+import '../../styles/colors.css';
 import styles from './ActivitySummary.module.css';
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 
-export default function ActivitySummary({ stats, onResetStats }) {
+export default function ActivitySummary({ stats }) {
     const totalSessions = stats.productive + stats.unproductive;
 
     const chartData = {
@@ -50,9 +50,6 @@ export default function ActivitySummary({ stats, onResetStats }) {
                                     {stats.unproductive} ({Math.round((stats.unproductive / totalSessions) * 100)}%)
                                 </span>
                             </div>
-                            <button className={styles.resetButton} onClick={onResetStats}>
-                                Reset Stats
-                            </button>
                         </div>
                     </>
                 ) : (

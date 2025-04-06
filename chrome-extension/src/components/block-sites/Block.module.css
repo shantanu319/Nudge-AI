@@ -1,9 +1,12 @@
-@import "../../../../styles/colors.css";
+@import "../../styles/colors.css";
 
 .container {
   padding: 0;
   background-color: transparent;
   color: var(--color-text-primary);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
 .inputContainer {

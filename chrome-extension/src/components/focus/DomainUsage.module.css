@@ -1,7 +1,7 @@
-@import "../../../../styles/colors.css";
+@import "../../styles/colors.css";
 
 .container {
-  margin-bottom: 0;
+  margin-top: 16px;
 }
 
 .title {
@@ -23,21 +23,23 @@
 .table {
   width: 100%;
   border-collapse: collapse;
+  margin-top: 8px;
 }
 
 .table th,
 .table td {
-  padding: 0.75rem;
+  padding: 8px;
   text-align: left;
   border-bottom: 1px solid var(--color-border-light);
-  color: var(--color-text-primary);
-  font-size: 0.875rem;
 }
 
 .table th {
-  font-weight: 500;
+  font-weight: 600;
   color: var(--color-text-primary);
-  background: var(--color-bg-tertiary);
+}
+
+.table td {
+  color: var(--color-text-secondary);
 }
 
 .timeCell {
@@ -46,10 +48,9 @@
 }
 
 .noData {
-  color: var(--color-text-secondary);
   text-align: center;
-  padding: 1rem;
-  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+  padding: 16px;
 }
 
 /* Custom scrollbar */

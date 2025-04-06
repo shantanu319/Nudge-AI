@@ -1,28 +1,45 @@
 @import "../../styles/colors.css";
 
 .container {
-  padding: 0;
+  padding: 8px;
   background-color: transparent;
   color: var(--color-text-primary);
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 8px;
+}
+
+.header {
+  margin-bottom: 0;
+}
+
+.header h2 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.header p {
+  font-size: 0.8rem;
+  color: var(--color-text-secondary);
+  margin: 4px 0 0 0;
 }
 
 .inputContainer {
   display: flex;
-  gap: 8px;
-  margin-bottom: 12px;
+  gap: 6px;
+  margin-bottom: 8px;
 }
 
 .urlInput {
   flex: 1;
-  padding: 8px 12px;
+  padding: 6px 8px;
   border: 1px solid var(--color-border-light);
-  border-radius: 6px;
+  border-radius: 4px;
   background: var(--color-bg-secondary);
   color: var(--color-text-primary);
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   transition: all 0.2s ease;
 }
 
@@ -32,25 +49,24 @@
 }
 
 .saveButton {
-  margin-top: 12px;
-  padding: 8px 16px;
+  padding: 6px 12px;
   background-color: var(--color-primary);
   color: var(--color-text-light);
   border: none;
-  border-radius: 6px;
+  border-radius: 4px;
   cursor: pointer;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
+  font-weight: 500;
   transition: all 0.2s ease;
   width: 100%;
 }
 
 .saveButton:hover {
   background-color: var(--color-hover);
-  transform: translateY(-1px);
 }
 
 .blockedList {
-  margin-top: 12px;
+  margin-top: 8px;
   max-height: 200px;
   overflow-y: auto;
 }
@@ -59,51 +75,61 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 12px;
+  padding: 6px 8px;
   background: var(--color-bg-secondary);
   border: 1px solid var(--color-border-light);
-  border-radius: 6px;
-  margin-bottom: 8px;
+  border-radius: 4px;
+  margin-bottom: 6px;
   transition: all 0.2s ease;
 }
 
 .blockedItem:hover {
   background: var(--color-hover);
-  transform: translateY(-1px);
 }
 
 .removeButton {
-  padding: 4px 8px;
-  background-color: var(--color-bg-tertiary);
-  color: var(--color-text-primary);
+  padding: 2px 4px;
+  background: none;
+  color: var(--color-text-secondary);
   border: none;
-  border-radius: 4px;
   cursor: pointer;
   transition: all 0.2s ease;
   font-size: 0.8rem;
+  display: flex;
+  align-items: center;
 }
 
 .removeButton:hover {
-  background-color: var(--color-hover);
+  color: var(--color-error);
+}
+
+.removeButton svg {
+  width: 12px;
+  height: 12px;
+  stroke-width: 2;
 }
 
 /* Custom scrollbar */
 .blockedList::-webkit-scrollbar {
-  width: 6px;
+  width: 2px;
 }
 
 .blockedList::-webkit-scrollbar-track {
   background: var(--color-bg-tertiary);
-  border-radius: 3px;
 }
 
 .blockedList::-webkit-scrollbar-thumb {
   background: var(--color-primary);
-  border-radius: 3px;
 }
 
-.blockedList::-webkit-scrollbar-thumb:hover {
-  background: var(--color-hover);
+.noData {
+  text-align: center;
+  color: var(--color-text-secondary);
+  font-size: 0.85rem;
+  padding: 12px;
+  background: var(--color-bg-secondary);
+  border-radius: 4px;
+  border: 1px dashed var(--color-border-light);
 }
 
 .block {

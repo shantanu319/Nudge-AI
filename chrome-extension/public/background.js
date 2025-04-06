@@ -184,6 +184,43 @@ const SITE_CATEGORIES = {
   PRODUCTIVITY: ['github.com', 'docs.google.com', 'notion.so', 'trello.com', 'asana.com']
 };
 
+// Analytics tracking
+let productivityStats = {
+  productive: 0,
+  unproductive: 0
+};
+
+// Load existing stats
+chrome.storage.local.get(['productivityStats'], (data) => {
+  if (data.productivityStats) {
+    productivityStats = data.productivityStats;
+    console.log('📊 Loaded existing productivity stats:', productivityStats);
+  }
+});
+
+// Update analytics
+function updateAnalytics(url, domain, isProductive, timeSpent) {
+  // Update productivity stats
+  if (isProductive !== undefined) {
+    productivityStats[isProductive ? 'productive' : 'unproductive']++;
+    chrome.storage.local.set({ productivityStats });
+    console.log('📊 Updated productivity stats:', productivityStats);
+  }
+
+  // Update domain usage
+  const domainUsage = {};
+  for (const [trackedDomain, tracking] of siteTracking.entries()) {
+    domainUsage[trackedDomain] = {
+      totalTime: tracking.totalTime,
+      category: tracking.category,
+      lastVisit: tracking.lastUpdate,
+      url: tracking.url
+    };
+  }
+  chrome.storage.local.set({ timeSpent: domainUsage });
+  console.log('📊 Updated domain usage:', domainUsage);
+}
+
 function getSiteCategory(url) {
   const domain = new URL(url).hostname.toLowerCase();
   for (const [category, domains] of Object.entries(SITE_CATEGORIES)) {
@@ -268,12 +305,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     case 'updateSettings':
       console.log('⚙️ Updating settings:', request.settings);
       settings = { ...settings, ...request.settings };
-      startScreenshotTimer(); // Restart timer with new interval
+      startScreenshotTimer(settings); // Restart timer with new interval
       break;
     case 'toggleActive':
       console.log('🔄 Toggling active state:', request.isActive);
       isActive = request.isActive;
-      startScreenshotTimer(); // Restart or stop timer based on active state
+      startScreenshotTimer(settings); // Restart or stop timer based on active state
       break;
     case 'blockSite':
       if (request.url) {
@@ -281,43 +318,75 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         // Handle site blocking
       }
       break;
+    case 'resetStats':
+      productivityStats = { productive: 0, unproductive: 0 };
+      chrome.storage.local.set({ productivityStats });
+      console.log('📊 Reset productivity stats');
+      sendResponse({ success: true });
+      break;
     default:
       console.log('⚠️ Unknown message action:', request.action);
   }
 });
 
-function startScreenshotTimer() {
+// Constants
+const CHECK_INTERVAL = 5 * 60 * 1000; // 5 minutes in milliseconds
+
+// Initialize extension
+async function initializeExtension() {
+  console.log('🔄 Initializing extension...');
+
+  try {
+    // Load settings from storage
+    const data = await chrome.storage.sync.get(null);
+    console.log('📦 Loaded data from storage:', data);
+
+    // Initialize default settings if not set
+    if (!data.settings) {
+      data.settings = {
+        isActive: true,
+        threshold: 50,
+        interventionStyle: 'steady_coach',
+        useGemini: true,
+        geminiApiKey: ''
+      };
+      await chrome.storage.sync.set({ settings: data.settings });
+    }
+
+    // Start screenshot timer
+    startScreenshotTimer(data.settings);
+
+  } catch (error) {
+    console.error('❌ Error initializing extension:', error);
+  }
+}
+
+// Start screenshot timer
+function startScreenshotTimer(settings) {
   console.log('⏰ Starting screenshot timer...');
-  console.log('Current settings:', {
-    interval: settings.interval,
-    isActive: isActive
-  });
+  console.log('Current settings:', settings);
 
   if (screenshotTimer) {
     console.log('🔄 Clearing existing timer');
     clearInterval(screenshotTimer);
-    screenshotTimer = null;
   }
 
-  if (!isActive) {
-    console.log('🔴 Extension is not active, not starting timer');
+  if (!settings.isActive) {
+    console.log('⏸️ Extension is not active, timer not started');
     return;
   }
 
-  const intervalMs = settings.interval * 60 * 1000;
-  console.log(`⏱️ Setting timer interval to ${settings.interval} minutes (${intervalMs}ms)`);
+  console.log(`⏱️ Setting timer interval to 5 minutes (${CHECK_INTERVAL}ms)`);
 
-  // Take first screenshot with a slight delay to avoid chrome:// pages
+  // Take initial screenshot after a short delay
   console.log('📸 Scheduling initial screenshot...');
-  setTimeout(() => {
-    console.log('Taking delayed initial screenshot...');
-    captureAndAnalyze();
-  }, 2000);
+  setTimeout(captureAndAnalyze, 5000);
 
+  // Set up regular interval
   screenshotTimer = setInterval(() => {
     console.log('⏰ Timer triggered, capturing screenshot...');
     captureAndAnalyze();
-  }, intervalMs);
+  }, CHECK_INTERVAL);
 
   console.log('✅ Screenshot timer started successfully');
 }
@@ -494,6 +563,14 @@ async function captureAndAnalyze() {
         reason: result.reason
       });
 
+      // Update analytics with the result
+      updateAnalytics(
+        tab.url,
+        currentDomain,
+        result.productivityScore >= settings.threshold,
+        tracking.totalTime
+      );
+
       // Store analysis result in history
       const currentAnalysis = {
         timestamp: Date.now(),
@@ -564,34 +641,6 @@ async function captureAndAnalyze() {
     } else {
       console.error('❌ Screenshot capture failed:', error);
     }
-  }
-}
-
-// Initialize extension
-async function initializeExtension() {
-  console.log('🔄 Initializing extension...');
-
-  try {
-    // Load settings from storage
-    const data = await chrome.storage.local.get(['settings', 'isActive']);
-    console.log('📦 Loaded data from storage:', data);
-
-    if (data.settings) {
-      settings = { ...settings, ...data.settings };
-      console.log('⚙️ Updated settings:', settings);
-    }
-
-    if (typeof data.isActive !== 'undefined') {
-      isActive = data.isActive;
-      console.log('🔄 Updated active state:', isActive);
-    }
-
-    // Start the screenshot timer
-    startScreenshotTimer();
-
-    console.log('✅ Extension initialized successfully');
-  } catch (error) {
-    console.error('❌ Error initializing extension:', error);
   }
 }
 

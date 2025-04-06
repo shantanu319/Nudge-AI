@@ -16,26 +16,6 @@ export default function Settings({ settings, onUpdateSettings, onClose }) {
             </div>
             <div className={styles.content}>
                 <div className={styles.settingRow}>
-                    <label htmlFor="interval" className={styles.label}>
-                        Check Interval (minutes):
-                    </label>
-                    <select
-                        id="interval"
-                        className={styles.select}
-                        value={settings.interval}
-                        onChange={(e) => handleSettingChange({ interval: Number(e.target.value) })}
-                    >
-                        <option value={0.1}>0.1</option>
-                        <option value={1}>1</option>
-                        <option value={3}>3</option>
-                        <option value={5}>5</option>
-                        <option value={10}>10</option>
-                        <option value={15}>15</option>
-                        <option value={30}>30</option>
-                    </select>
-                </div>
-
-                <div className={styles.settingRow}>
                     <label htmlFor="interventionStyle" className={styles.label}>
                         Focus Guardian Style:
                     </label>
@@ -45,18 +25,18 @@ export default function Settings({ settings, onUpdateSettings, onClose }) {
                         value={settings.interventionStyle}
                         onChange={(e) => handleSettingChange({ interventionStyle: e.target.value })}
                     >
-                        <option value="drill_sergeant">Drill Sergeant (Every unproductive instance)</option>
-                        <option value="vigilant_mentor">Vigilant Mentor (Every 2 instances)</option>
-                        <option value="steady_coach">Steady Coach (Every 4 instances)</option>
-                        <option value="patient_guide">Patient Guide (Every 7 instances)</option>
-                        <option value="zen_observer">Zen Observer (Every 10 instances)</option>
+                        <option value="drill_sergeant">Drill Sergeant (Strict)</option>
+                        <option value="vigilant_mentor">Vigilant Mentor (Firm)</option>
+                        <option value="steady_coach">Steady Coach (Balanced)</option>
+                        <option value="patient_guide">Patient Guide (Lenient)</option>
+                        <option value="zen_observer">Zen Observer (Very Lenient)</option>
                     </select>
                     <p className={styles.helperText}>
-                        {settings.interventionStyle === 'drill_sergeant' && "Notifies you immediately when unproductive behavior is detected"}
-                        {settings.interventionStyle === 'vigilant_mentor' && "Notifies you after 2 unproductive instances"}
-                        {settings.interventionStyle === 'steady_coach' && "Notifies you after 4 unproductive instances"}
-                        {settings.interventionStyle === 'patient_guide' && "Notifies you after 7 unproductive instances"}
-                        {settings.interventionStyle === 'zen_observer' && "Notifies you after 10 unproductive instances"}
+                        {settings.interventionStyle === 'drill_sergeant' && "Strict monitoring with frequent reminders for unproductive behavior"}
+                        {settings.interventionStyle === 'vigilant_mentor' && "Firm monitoring with regular reminders"}
+                        {settings.interventionStyle === 'steady_coach' && "Balanced monitoring with moderate reminders"}
+                        {settings.interventionStyle === 'patient_guide' && "Lenient monitoring with sparse reminders"}
+                        {settings.interventionStyle === 'zen_observer' && "Very lenient monitoring with minimal reminders"}
                     </p>
                 </div>
             </div>

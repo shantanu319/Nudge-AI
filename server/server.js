@@ -39,17 +39,17 @@ console.log('✅ API Key configured successfully');
 function getInterventionStyleDescription(style) {
   switch (style) {
     case 'drill_sergeant':
-      return 'very strict productivity evaluation, flag even minor distractions';
+      return 'very strict monitoring with short time limits';
     case 'vigilant_mentor':
-      return 'strict productivity evaluation with minimal tolerance for distractions';
+      return 'strict monitoring with moderate time limits';
     case 'steady_coach':
-      return 'balanced productivity evaluation, moderate tolerance for brief distractions';
+      return 'balanced monitoring with standard time limits';
     case 'patient_guide':
-      return 'lenient productivity evaluation, higher tolerance for distractions';
+      return 'lenient monitoring with relaxed time limits';
     case 'zen_observer':
-      return 'very lenient productivity evaluation, only flag significant distractions';
+      return 'very lenient monitoring with extended time limits';
     default:
-      return 'balanced productivity evaluation';
+      return 'balanced monitoring';
   }
 }
 
@@ -132,25 +132,65 @@ Context:
 ${hasTasks ? `- Active tasks:\n${taskContext}\n` : '- No active tasks'}
 - Focus style: ${interventionStyle ? `${interventionStyle.replace('_', ' ')} (${getInterventionStyleDescription(interventionStyle)})` : 'default'}
 
-Thresholds by category (standard | off-peak):
+Time Limits by Style and Category (standard | off-peak):
+
+Drill Sergeant (Strict):
+- Streaming: 30min | 45min
+- Gaming: 10min | 15min
+- Social Media: 15min | 20min
+- News/Forums: 15min | 20min
+- Shopping: 10min | 15min
+
+Vigilant Mentor (Firm):
+- Streaming: 45min | 60min
+- Gaming: 15min | 25min
+- Social Media: 20min | 30min
+- News/Forums: 25min | 35min
+- Shopping: 15min | 25min
+
+Steady Coach (Balanced):
 - Streaming: 60min | 90min
-- Gaming: 15min | 30min
-- Social Media: 20min | 40min
+- Gaming: 20min | 30min
+- Social Media: 30min | 45min
 - News/Forums: 30min | 45min
-- Shopping: 25min | 40min
-- Productivity: no limit
+- Shopping: 20min | 30min
+
+Patient Guide (Lenient):
+- Streaming: 90min | 120min
+- Gaming: 30min | 45min
+- Social Media: 45min | 60min
+- News/Forums: 45min | 60min
+- Shopping: 30min | 45min
+
+Zen Observer (Very Lenient):
+- Streaming: 120min | 180min
+- Gaming: 45min | 60min
+- Social Media: 60min | 90min
+- News/Forums: 60min | 90min
+- Shopping: 45min | 60min
 
 Context Modifiers:
 - Work hours (9am-5pm): -30% time
-- Charging: +50% time
-- Previous dismissals: +5min per dismiss
+- Off hours (after 8pm): +20% time
+- Weekend: +50% time
+- Charging: +20% time
+- Previous dismissals: +10min per dismiss
+- Active tasks: -20% time if unrelated to tasks
 
 Important Rules:
 1. DO NOT send notifications if time_spent is 0 or if site was just opened
-2. First notification at 50% of threshold
-3. Final notification at 100% of threshold
-4. Minimum 5 minutes between notifications
-5. Consider work hours and battery status when calculating thresholds
+2. Minimum time between notifications:
+   - Drill Sergeant: 10 minutes
+   - Vigilant Mentor: 15 minutes
+   - Steady Coach: 20 minutes
+   - Patient Guide: 30 minutes
+   - Zen Observer: 45 minutes
+3. Message tone should match the intervention style:
+   - Drill Sergeant: Direct and urgent
+   - Vigilant Mentor: Firm but supportive
+   - Steady Coach: Balanced and encouraging
+   - Patient Guide: Gentle and understanding
+   - Zen Observer: Very mild suggestions
 
 Based on this context, determine:
 1. Should we send a notification now?

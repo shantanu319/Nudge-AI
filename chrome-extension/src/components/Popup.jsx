@@ -368,7 +368,7 @@ const Popup = () => {
   return (
     <div className="glassmorphism-container">
       <div className="glass-card main-card">
-        <h2 className="glass-title">Productivity Nudge</h2>
+        <h2 className="glass-title">Nudge AI</h2>
 
         {/* Active / Pause Button */}
         <div className="status-container">

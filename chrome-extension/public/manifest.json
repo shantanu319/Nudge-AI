@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Productivity Nudge",
+  "name": "Nudge AI",
   "version": "1.0",
   "description": "Takes periodic screenshots, analyzes them via the Google Gemini API, and nudges you if you're unproductive.",
   "permissions": [
@@ -18,7 +18,7 @@
   },
   "action": {
     "default_popup": "src/index.html",
-    "default_title": "Productivity Nudge",
+    "default_title": "Nudge AI",
     "default_icon": {
       "16": "icon.jpg",
       "48": "icon.jpg",

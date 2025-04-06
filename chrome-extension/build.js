@@ -4,35 +4,65 @@ const { execSync } = require('child_process');
 
 // Ensure build directory exists
 const buildDir = path.join(__dirname, 'build');
-if (!fs.existsSync(buildDir)) {
-  fs.mkdirSync(buildDir);
+if (fs.existsSync(buildDir)) {
+  fs.rmSync(buildDir, { recursive: true });
+}
+fs.mkdirSync(buildDir);
+
+// First run Vite build for the popup
+console.log('Building popup with Vite...');
+try {
+  execSync('npx vite build', { stdio: 'inherit' });
+} catch (error) {
+  console.error('Popup build failed:', error);
+  process.exit(1);
 }
 
 // Copy manifest.json to build directory
 console.log('Copying manifest.json...');
 fs.copyFileSync(
-  path.join(__dirname, 'public', 'manifest.json'),
+  path.join(__dirname, 'manifest.json'),
   path.join(buildDir, 'manifest.json')
 );
 
-// Copy background.js to build directory
-console.log('Copying background.js...');
-fs.copyFileSync(
-  path.join(__dirname, 'public', 'background.js'),
-  path.join(buildDir, 'background.js')
+// Process and write background script
+console.log('Processing background script...');
+const backgroundPath = path.join(__dirname, 'public', 'background.js');
+const backgroundContent = fs.readFileSync(backgroundPath, 'utf8');
+
+// Write the background script
+console.log('Writing background script...');
+fs.writeFileSync(
+  path.join(buildDir, 'background.js'),
+  backgroundContent
 );
 
-// Copy icon files to build directory
-console.log('Copying icon files...');
-['icon16.png', 'icon48.png', 'icon128.png'].forEach(icon => {
-  fs.copyFileSync(
-    path.join(__dirname, 'public', icon),
-    path.join(buildDir, icon)
-  );
+// Copy other public files (except JS)
+console.log('Copying public files...');
+const publicDir = path.join(__dirname, 'public');
+fs.readdirSync(publicDir).forEach(file => {
+  const sourcePath = path.join(publicDir, file);
+  const targetPath = path.join(buildDir, file);
+
+  if (fs.statSync(sourcePath).isFile() && !file.endsWith('.js')) {
+    fs.copyFileSync(sourcePath, targetPath);
+  }
 });
 
-// Build React app using Vite
-console.log('Building React app with Vite...');
-execSync('npx vite build', { stdio: 'inherit' });
+// Copy static assets from src if they exist
+const srcAssetsDir = path.join(__dirname, 'src', 'assets');
+if (fs.existsSync(srcAssetsDir)) {
+  console.log('Copying src assets...');
+  const buildAssetsDir = path.join(buildDir, 'assets');
+  if (!fs.existsSync(buildAssetsDir)) {
+    fs.mkdirSync(buildAssetsDir);
+  }
+  fs.readdirSync(srcAssetsDir).forEach(file => {
+    fs.copyFileSync(
+      path.join(srcAssetsDir, file),
+      path.join(buildAssetsDir, file)
+    );
+  });
+}
 
 console.log('Build completed successfully!');

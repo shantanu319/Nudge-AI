@@ -19,9 +19,17 @@ app.use(cors({
 app.use(express.json({ limit: '50mb' })); // Increase limit for image data
 
 // Google Gemini API endpoint (using the latest recommended model for vision)
-const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
-// Add your API key directly here
-const API_KEY = 'AIzaSyDIJmvCa8bkonKAWrgodywFa4INAWMADwM'; //
+const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
+// Get API key from environment variables
+const API_KEY = process.env.GEMINI_API_KEY;
+
+if (!API_KEY) {
+  console.error('❌ GEMINI_API_KEY not found in environment variables');
+  console.error('Please create a .env file in the server directory with your API key');
+  process.exit(1);
+}
+
+console.log('✅ API Key configured successfully');
 
 /**
  * Returns a description of the intervention style for the Gemini prompt
@@ -67,45 +75,103 @@ app.post('/analyze', async (req, res) => {
     // Extract base64 data from data URL
     const base64Data = image.split(',')[1];
 
+    if (!base64Data) {
+      console.error('❌ Invalid image data: No base64 content found');
+      return res.status(400).json({ error: 'Invalid image data format' });
+    }
+
+    // Validate base64 data
+    try {
+      const buffer = Buffer.from(base64Data, 'base64');
+      if (buffer.length === 0) {
+        console.error('❌ Invalid image data: Empty buffer after base64 decode');
+        return res.status(400).json({ error: 'Invalid image data' });
+      }
+      console.log(`📊 Image size: ${(buffer.length / 1024).toFixed(2)}KB`);
+    } catch (error) {
+      console.error('❌ Invalid base64 data:', error);
+      return res.status(400).json({ error: 'Invalid image encoding' });
+    }
+
     // Get task information from request if available
-    const { taskContext, hasTasks, interventionStyle } = req.body;
+    const { taskContext, hasTasks, interventionStyle, isEntertainment, timeSpent, timeOfDay, lastNotificationTime, previousDismissals, batteryStatus, siteCategory } = req.body;
 
     // Prepare request to Gemini API
     const payload = {
-      contents: [
-        {
-          parts: [
-            {
-              text: `Analyze this screenshot from ${title} (${url}) and determine if the user is being productive or distracted. Provide a productivity score between 0-100 where higher means more productive.\n\n${hasTasks ? `The user has the following tasks to work on:\n${taskContext}\n` : ''}${interventionStyle ? `User has selected "${interventionStyle.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase())}" focus guardian style (${getInterventionStyleDescription(interventionStyle)}).\n\n` : ''}Use these criteria:\n
-              1. Is this work/study related content?\n
-              2. Is this something that might be distracting the user from work?\n${hasTasks ? `              3. Is the content relevant to any of the user's tasks, especially the focus task?\n              4. For tasks with higher intensity/priority or less time remaining, content relevance is more important.\n` : ''}
-              ${!hasTasks ? '3' : '5'}. Does this appear to be social media, entertainment, or games?\n
-              A score below ${threshold || 50} is considered unproductive.\n${hasTasks ? '\nConsider both general productivity AND specific task relevance in your assessment. Content that directly relates to active tasks should receive a higher score, with more weight given to urgent (less time left) and important (higher intensity) tasks.\n' : ''}\n
-              Return ONLY a JSON object with these fields:\n
-              {\n
-                "productivityScore": number between 0-100,\n
-                "unproductive": boolean based on threshold,\n${hasTasks ? '                "relevantTasks": array of task titles that this content is relevant to,\n' : ''}
-                "message": a one-line message ${hasTasks ? 'explaining the relevance to tasks or ' : ''}if unproductive, explaining why\n
-              }\n`
-            },
-            {
-              inline_data: {
-                mime_type: 'image/jpeg',
-                data: base64Data
-              }
+      contents: [{
+        parts: [
+          {
+            text: `As a smart productivity assistant, analyze this screenshot and context to determine if a notification is needed and craft an appropriate message.
+
+Site Info:
+- URL: ${url}
+- Title: ${title}
+- Category: ${siteCategory || (isEntertainment ? 'entertainment' : 'unknown')}
+- Time spent: ${timeSpent || '0'} minutes
+- Previous dismissals: ${previousDismissals || 0} in the last week
+
+Context:
+- Time of day: ${timeOfDay || new Date().toLocaleTimeString()}
+- Last notification: ${lastNotificationTime ? `${Math.floor((Date.now() - lastNotificationTime) / 60000)} minutes ago` : 'never'}
+- Battery status: ${batteryStatus || 'unknown'}
+${hasTasks ? `- Active tasks:\n${taskContext}\n` : '- No active tasks'}
+- Focus style: ${interventionStyle ? `${interventionStyle.replace('_', ' ')} (${getInterventionStyleDescription(interventionStyle)})` : 'default'}
+
+Thresholds by category (standard | off-peak):
+- Streaming: 60min | 90min
+- Gaming: 15min | 30min
+- Social Media: 20min | 40min
+- News/Forums: 30min | 45min
+- Shopping: 25min | 40min
+- Productivity: no limit
+
+Context Modifiers:
+- Work hours (9am-5pm): -30% time
+- Charging: +50% time
+- Previous dismissals: +5min per dismiss
+
+Based on this context, determine:
+1. Should we send a notification now?
+2. If yes, what's the appropriate message and block duration?
+3. What's the current productivity score?
+
+Return ONLY a JSON object:
+{
+  "productivityScore": number 0-100,
+  "shouldNotify": boolean,
+  "notificationMessage": string (if shouldNotify),
+  "suggestedBlockDuration": number (minutes, if shouldNotify),
+  "reason": string (brief explanation of decision)
+}`
+          },
+          {
+            inline_data: {
+              mime_type: 'image/jpeg',
+              data: base64Data
             }
-          ]
-        }
-      ],
+          }
+        ]
+      }],
       generationConfig: {
         temperature: 0.4,
-        maxOutputTokens: 100
+        maxOutputTokens: 150
       }
     };
 
-    // Call the Gemini API
+    // Log request details for debugging
     console.log('🌐 Sending request to Gemini API...');
+    console.log('📝 Request payload structure:', {
+      ...payload,
+      contents: [{
+        ...payload.contents[0],
+        parts: [
+          payload.contents[0].parts[0],
+          { ...payload.contents[0].parts[1], inline_data: { ...payload.contents[0].parts[1].inline_data, data: '[REDACTED]' } }
+        ]
+      }]
+    });
 
+    // Call the Gemini API
     let result;
     try {
       // Make sure API key is appended to URL
@@ -241,9 +307,12 @@ app.post('/analyze', async (req, res) => {
 
     // Return the result to the extension with a confirmation flag
     return res.json({
-      unproductive,
+      unproductive: analysis.productivityScore < threshold,
       productivityScore: analysis.productivityScore,
-      message: unproductive ? analysis.message : '',
+      shouldNotify: analysis.shouldNotify || false,
+      notificationMessage: analysis.notificationMessage || '',
+      suggestedBlockDuration: analysis.suggestedBlockDuration || 30,
+      reason: analysis.reason || '',
       processed: true,
       timestamp: new Date().toISOString()
     });

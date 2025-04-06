@@ -1,35 +1,44 @@
 {
   "manifest_version": 3,
-  "name": "Nudge",
+  "name": "Nudge AI",
   "version": "1.0",
-  "description": "A productivity extension that helps you stay focused",
-  "permissions": ["storage", "tabs", "webNavigation", "scripting", "activeTab"],
-  "host_permissions": ["<all_urls>"],
-  "content_security_policy": {
-    "extension_pages": "default-src 'self'; img-src 'self' data:;"
-  },
+  "description": "Takes periodic screenshots, analyzes them via the Google Gemini API, and nudges you if you're unproductive.",
+  "permissions": [
+    "activeTab",
+    "storage",
+    "notifications",
+    "windows",
+    "scripting",
+    "tabs",
+    "declarativeNetRequest",
+    "declarativeNetRequestWithHostAccess"
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["icon.jpg", "assets/*"],
+      "matches": ["<all_urls>"]
+    }
+  ],
   "background": {
-    "service_worker": "src/background.js",
-    "type": "module"
+    "service_worker": "background.js"
   },
   "action": {
-    "default_popup": "src/popup.html",
+    "default_popup": "index.html",
+    "default_title": "Nudge AI",
     "default_icon": {
-      "16": "icons/icon16.png",
-      "48": "icons/icon48.png",
-      "128": "icons/icon128.png"
+      "16": "icon.jpg",
+      "48": "icon.jpg",
+      "128": "icon.jpg"
     }
   },
   "icons": {
-    "16": "icons/icon16.png",
-    "48": "icons/icon48.png",
-    "128": "icons/icon128.png"
+    "16": "icon.jpg",
+    "48": "icon.jpg",
+    "128": "icon.jpg"
   },
-  "content_scripts": [
-    {
-      "matches": ["<all_urls>"],
-      "js": ["src/content.js"],
-      "css": ["src/content.css"]
-    }
+  "host_permissions": [
+    "http://localhost:3000/*",
+    "http://localhost:3001/*",
+    "<all_urls>"
   ]
 }

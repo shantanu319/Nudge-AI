@@ -1,5 +1,14 @@
 import React from 'react';
-import ReactDOM from 'react-dom';
+import { createRoot } from 'react-dom/client';
 import Popup from './components/main/Popup';
+import './index.css';
 
-ReactDOM.createRoot(document.getElementById('root')).render(<Popup />);
+const root = document.getElementById('root');
+if (root) {
+    const reactRoot = createRoot(root);
+    reactRoot.render(
+        <React.StrictMode>
+            <Popup />
+        </React.StrictMode>
+    );
+}

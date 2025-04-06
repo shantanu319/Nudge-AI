@@ -1,523 +1,502 @@
-import { sendNotification } from './notifications.js';
+// Service worker initialization
+self.window = self;
+self.document = null;
 
+// Debug logging
+console.log('🚀 Service worker starting...');
+
+// Shared state
+const ACTIVE_NOTIFICATIONS = new Map();
+const GEMINI_CACHE = new Map();
+const CACHE_DURATION = 12 * 60 * 60 * 1000;
+
+// Notifications Module
+async function sendNotification(title, message, context = {}) {
+  console.log('🔔 Preparing to send notification:', { title, message });
+
+  try {
+    // Get the active tab using chrome.tabs API
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+
+    if (!tab) {
+      console.log('❌ No active tab found for notification');
+      return;
+    }
+
+    const notificationId = `gemini-notif-${Date.now()}-${Math.random()}`;
+    console.log('📝 Creating notification with ID:', notificationId);
+
+    const url = new URL(tab.url);
+    ACTIVE_NOTIFICATIONS.set(notificationId, {
+      ...context,
+      url: url.hostname,
+      tabId: tab.id,
+      messageVersion: context.messageVersion || 'default'
+    });
+
+    chrome.notifications.create(notificationId, {
+      type: 'basic',
+      iconUrl: "icon.jpg",
+      title,
+      message,
+      buttons: [{ title: 'Block' }],
+    }, (createdId) => {
+      if (chrome.runtime.lastError) {
+        console.error('❌ Notification creation failed:', chrome.runtime.lastError);
+        ACTIVE_NOTIFICATIONS.delete(notificationId);
+      } else {
+        console.log('✅ Notification created successfully:', createdId);
+      }
+    });
+  } catch (error) {
+    console.error('❌ Error creating notification:', error);
+  }
+}
+
+async function generateGeminiMessage(context) {
+  console.log('🤖 Generating Gemini notification for:', context.url);
+  const { url, productivityScore, taskContext, interventionStyle, geminiApiKey } = context;
+  const domain = new URL(url).hostname;
+  const cacheKey = `${domain}-${productivityScore}-${Math.floor(Date.now() / CACHE_DURATION)}`;
+
+  if (GEMINI_CACHE.has(cacheKey)) {
+    console.log('🎯 Using cached Gemini message for:', domain);
+    return GEMINI_CACHE.get(cacheKey);
+  }
+
+  if (!geminiApiKey) {
+    console.log('⚠️ No Gemini API key provided');
+    return null;
+  }
+
+  try {
+    console.log('🌐 Sending request to Gemini API...');
+    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${geminiApiKey}`
+      },
+      body: JSON.stringify({
+        contents: [{
+          parts: [{
+            text: `As a productivity assistant, create a 140-character max message for someone on ${url} (${context.tabTitle}) with ${productivityScore}% productivity score. Tasks: ${taskContext || 'none'}. Style: ${interventionStyle}. Time: ${new Date().toLocaleTimeString()}. Be creative and non-repetitive.`
+          }]
+        }],
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: 60,
+        }
+      })
+    });
+
+    if (!response.ok) {
+      console.error('❌ Gemini API error:', response.status, response.statusText);
+      throw new Error(`API error: ${response.status}`);
+    }
+
+    console.log('✅ Received Gemini API response');
+    const data = await response.json();
+    const message = data.candidates[0].content.parts[0].text.trim();
+
+    console.log('💬 Generated message:', message.substring(0, 50) + '...');
+    GEMINI_CACHE.set(cacheKey, message);
+    if (GEMINI_CACHE.size > 50) {
+      console.log('🧹 Cleaning up Gemini cache');
+      GEMINI_CACHE.delete(GEMINI_CACHE.keys().next().value);
+    }
+
+    return message;
+  } catch (error) {
+    console.error('❌ Gemini Error:', error);
+    return null;
+  }
+}
+
+// Handle notification button clicks
+chrome.notifications.onButtonClicked.addListener((notificationId, buttonIndex) => {
+  const notificationInfo = ACTIVE_NOTIFICATIONS.get(notificationId);
+  if (!notificationInfo) return;
+
+  if (buttonIndex === 0) { // Block button
+    chrome.runtime.sendMessage({
+      action: 'blockSite',
+      url: notificationInfo.url
+    });
+  }
+
+  ACTIVE_NOTIFICATIONS.delete(notificationId);
+  chrome.notifications.clear(notificationId);
+});
+
+// Clean up notifications when closed
+chrome.notifications.onClosed.addListener((notificationId) => {
+  ACTIVE_NOTIFICATIONS.delete(notificationId);
+});
+
+// Initialize module
+console.log('📢 Notifications module loaded successfully');
+
+// Background Script
 let currentRules = [];
 let settings = {
-  interval: 1,  // screenshot interval, in minutes
+  interval: 1, // screenshot interval, in minutes
   threshold: 50, // unproductive threshold (%)
-  interventionStyle: 'drill_sergeant' // Default to most aggressive intervention style
+  interventionStyle: 'drill_sergeant', // Default intervention style
+  useGemini: true, // Whether to use Gemini for notifications
+  geminiApiKey: '' // API key for Gemini
 };
 let isActive = true;
-
-// For screenshots at intervals
 let screenshotTimer = null;
-
-// Variables for handling tasks
 let userTasks = [];
 let currentFocusTask = null;
 let parasiteTasks = [];
 let currentFocusParasite = null;
-
-// Variables for smart intervention
-let recentAnalyses = new Map(); // Store recent analyses by domain
-const MAX_HISTORY_SIZE = 20; // Increased to handle more history per domain
-
-// Intervention style thresholds - consecutive unproductive screenshots needed
+let recentAnalyses = new Map();
+const MAX_HISTORY_SIZE = 20;
 const INTERVENTION_THRESHOLDS = {
-  drill_sergeant: 1,  // Every screenshot
-  vigilant_mentor: 2, // Every 2 screenshots
-  steady_coach: 4,    // Every 4 screenshots
-  patient_guide: 7,   // Every 7 screenshots
-  zen_observer: 10    // Every 10 screenshots
+  drill_sergeant: 1,
+  vigilant_mentor: 2,
+  steady_coach: 4,
+  patient_guide: 7,
+  zen_observer: 10
 };
 
-// Single message listener for all actions
+// Rate limiting for screenshot capture
+let lastCaptureTime = 0;
+const MIN_CAPTURE_INTERVAL = 500; // Minimum 500ms between captures
+
+// Server health check function
+async function checkServerHealth() {
+  try {
+    const healthCheck = await fetch('http://localhost:3001/health');
+    if (!healthCheck.ok) {
+      console.error('❌ Server health check failed:', healthCheck.status);
+      console.log('🔄 Will retry in 10 seconds...');
+      setTimeout(captureAndAnalyze, 10000);
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.error('❌ Server is not running:', error.message);
+    console.log('🔄 Will retry in 10 seconds...');
+    setTimeout(captureAndAnalyze, 10000);
+    return false;
+  }
+}
+
+// Message handling
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  console.log('Received message:', request.action);
+  console.log('📨 Received message:', request);
 
   switch (request.action) {
     case 'updateSettings':
-      console.log('Updating settings:', request.settings);
-      settings = request.settings;
-      chrome.storage.local.set({ settings });
-      startScreenshotTimer();
+      console.log('⚙️ Updating settings:', request.settings);
+      settings = { ...settings, ...request.settings };
+      startScreenshotTimer(); // Restart timer with new interval
       break;
-
     case 'toggleActive':
-      console.log('Toggling active state:', request.isActive);
+      console.log('🔄 Toggling active state:', request.isActive);
       isActive = request.isActive;
-      chrome.storage.local.set({ isActive });
-      startScreenshotTimer();
+      startScreenshotTimer(); // Restart or stop timer based on active state
       break;
-
-    case 'updateTasks':
-      userTasks = request.tasks;
-      console.log('Tasks updated:', userTasks);
+    case 'blockSite':
+      if (request.url) {
+        console.log('🚫 Blocking site:', request.url);
+        // Handle site blocking
+      }
       break;
-
-    case 'updateCurrentFocus':
-      currentFocusTask = request.currentFocus;
-      console.log('Current focus task updated:', currentFocusTask);
-      break;
-
-    case 'updateParasiteTasks':
-      parasiteTasks = request.tasks;
-      console.log('Parasite tasks updated:', parasiteTasks);
-      break;
-
-    case 'updateCurrentFocusParasite':
-      currentFocusParasite = request.currentFocus;
-      console.log('Current focus parasite task updated:', currentFocusParasite);
-      break;
+    default:
+      console.log('⚠️ Unknown message action:', request.action);
   }
 });
 
-// Single initialization block
-chrome.storage.local.get([
-  'settings',
-  'isActive',
-  'productivityStats',
-  'blockedRules',
-  'tasks',
-  'currentFocus',
-  'parasiteTasks',
-  'currentFocusParasite',
-  'recentAnalysesByDomain'
-], (result) => {
-  console.log('Initializing from storage:', result);
-
-  // Load settings with defaults
-  settings = {
-    interval: 1,
-    threshold: 50,
-    interventionStyle: 'drill_sergeant',
-    ...result.settings
-  };
-
-  // Load active state
-  isActive = result.isActive ?? true;
-
-  // Initialize or load recent analyses
-  if (result.recentAnalysesByDomain) {
-    recentAnalyses = new Map(Object.entries(result.recentAnalysesByDomain));
-  }
-
-  // Load other state
-  if (result.blockedRules) {
-    currentRules = result.blockedRules;
-    chrome.declarativeNetRequest.updateDynamicRules({
-      removeRuleIds: currentRules.map(r => r.id),
-      addRules: currentRules
-    });
-  }
-
-  // Initialize tasks
-  userTasks = result.tasks || [];
-  currentFocusTask = result.currentFocus || null;
-  parasiteTasks = result.parasiteTasks || [];
-  currentFocusParasite = result.currentFocusParasite || null;
-
-  // Initialize productivity stats if missing
-  if (!result.productivityStats) {
-    chrome.storage.local.set({ productivityStats: { productive: 0, unproductive: 0 } });
-  }
-
-  // Start timers
-  startScreenshotTimer();
-  startDomainTrackingTimer();
-
-  console.log('Background script initialized with settings:', settings);
-});
-
-/**
- * Determines if a notification should be shown based on intervention style and recent analyses
- * @param {string} currentUrl - The URL of the current tab
- * @returns {boolean} - Whether a notification should be shown
- */
-function determineIfShouldNotify(currentUrl) {
-  // Ensure settings.interventionStyle exists and is valid
-  if (!settings.interventionStyle || !INTERVENTION_THRESHOLDS[settings.interventionStyle]) {
-    settings.interventionStyle = 'drill_sergeant';
-    chrome.storage.local.set({ settings });
-  }
-
-  const threshold = INTERVENTION_THRESHOLDS[settings.interventionStyle] || 1;
-  const currentDomain = new URL(currentUrl).hostname;
-
-  // Get domain's analysis history
-  const domainAnalyses = recentAnalyses.get(currentDomain) || [];
-
-  // Count total unproductive instances in the recent history
-  const unproductiveCount = domainAnalyses.filter(analysis => analysis.unproductive).length;
-
-  // Log the current intervention status
-  const styleName = settings.interventionStyle.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase());
-  console.log(`${styleName} mode: ${unproductiveCount}/${threshold} unproductive instances on ${currentDomain}`);
-
-  return unproductiveCount >= threshold;
-}
-
-// Timer management
-// For domain-time tracking:
-let timeSpent = {};         // { 'www.example.com': totalMs, ... }
-let currentDomain = null;   // The domain we're currently on
-let domainStartTime = null; // Timestamp (ms) when we started currentDomain
-
-/********************************************************
- * 2) INITIALIZE FROM CHROME STORAGE
- ********************************************************/
-chrome.storage.local.get(
-  ['settings', 'isActive', 'productivityStats', 'timeSpent'],
-  (result) => {
-    // Load settings or create defaults
-    if (result.settings) {
-      settings = result.settings;
-    } else {
-      chrome.storage.local.set({ settings });
-    }
-
-    // Load or default the active state
-    if (result.isActive !== undefined) {
-      isActive = result.isActive;
-    } else {
-      chrome.storage.local.set({ isActive });
-    }
-
-    // Initialize productivityStats if missing
-    if (!result.productivityStats) {
-      chrome.storage.local.set({
-        productivityStats: { productive: 0, unproductive: 0 },
-      });
-    }
-
-    // Load or initialize timeSpent
-    if (result.timeSpent) {
-      timeSpent = result.timeSpent;
-    } else {
-      timeSpent = {};
-      chrome.storage.local.set({ timeSpent });
-    }
-
-    // Start the periodic screenshot timer
-    startScreenshotTimer();
-
-    // Start the "real-time" domain usage tracking (1s interval)
-    startDomainTrackingTimer();
-  }
-);
-
-/********************************************************
- * 3) PERIODIC SCREENSHOT CAPTURE (EVERY N MINUTES)
- ********************************************************/
 function startScreenshotTimer() {
-  // Clear any existing timer
+  console.log('⏰ Starting screenshot timer...');
+  console.log('Current settings:', {
+    interval: settings.interval,
+    isActive: isActive
+  });
+
   if (screenshotTimer) {
+    console.log('🔄 Clearing existing timer');
     clearInterval(screenshotTimer);
     screenshotTimer = null;
   }
 
   if (!isActive) {
-    console.log('Extension is inactive. Not starting screenshot timer.');
+    console.log('🔴 Extension is not active, not starting timer');
     return;
   }
 
   const intervalMs = settings.interval * 60 * 1000;
-  screenshotTimer = setInterval(captureAndAnalyze, intervalMs);
-  console.log(`Screenshot timer started: every ${settings.interval} minute(s).`);
+  console.log(`⏱️ Setting timer interval to ${settings.interval} minutes (${intervalMs}ms)`);
 
-  // Do initial capture
-  captureAndAnalyze();
+  // Take first screenshot with a slight delay to avoid chrome:// pages
+  console.log('📸 Scheduling initial screenshot...');
+  setTimeout(() => {
+    console.log('Taking delayed initial screenshot...');
+    captureAndAnalyze();
+  }, 2000);
+
+  screenshotTimer = setInterval(() => {
+    console.log('⏰ Timer triggered, capturing screenshot...');
+    captureAndAnalyze();
+  }, intervalMs);
+
+  console.log('✅ Screenshot timer started successfully');
 }
 
-// Listen for messages from the popup
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.action === 'updateSettings') {
-    settings = message.settings;
-    console.log('Settings updated:', settings);
-    startScreenshotTimer(); // Restart timer with new settings
-  } else if (message.action === 'toggleActive') {
-    isActive = message.isActive;
-    console.log('Active state changed:', isActive);
-    startScreenshotTimer(); // Start or stop timer based on active state
-  } else if (message.action === 'updateTasks') {
-    userTasks = message.tasks;
-    console.log('Tasks updated:', userTasks);
-  } else if (message.action === 'updateCurrentFocus') {
-    currentFocusTask = message.currentFocus;
-    console.log('Current focus task updated:', currentFocusTask);
-  }
-});
-
 async function captureAndAnalyze() {
-  console.log('Starting captureAndAnalyze, isActive:', isActive);
-
   if (!isActive) {
-    console.log('Extension is inactive. Skipping capture and analysis.');
+    console.log('🔴 Extension is not active, skipping analysis');
     return;
   }
 
-  try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    console.log('Active tab:', tab);
+  console.log('🟢 Starting screenshot capture and analysis...');
 
-    if (!tab || tab.url.startsWith('chrome://')) {
-      console.log('No valid tab or tab is a Chrome internal page. Skipping.');
+  try {
+    // Check if enough time has passed since last capture
+    const now = Date.now();
+    const timeSinceLastCapture = now - lastCaptureTime;
+    if (timeSinceLastCapture < MIN_CAPTURE_INTERVAL) {
+      const waitTime = MIN_CAPTURE_INTERVAL - timeSinceLastCapture;
+      console.log(`⏳ Waiting ${waitTime}ms before next capture...`);
+      await new Promise(resolve => setTimeout(resolve, waitTime));
+    }
+
+    // Check server health before proceeding
+    const serverRunning = await checkServerHealth();
+    if (!serverRunning) {
+      console.error('❌ Server is not running');
+      return;
+    }
+    console.log('✅ Server is running');
+
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    console.log('📑 Current tab:', {
+      url: tab?.url,
+      title: tab?.title,
+      id: tab?.id
+    });
+
+    if (!tab || !tab.url) {
+      console.log('⚠️ No active tab found, retrying in 5 seconds...');
+      setTimeout(captureAndAnalyze, 5000);
+      return;
+    }
+
+    if (tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://')) {
+      console.log('⚠️ Chrome internal page, skipping analysis:', tab.url);
       return;
     }
 
     const currentDomain = new URL(tab.url).hostname;
-    console.log('Current domain:', currentDomain);
+    console.log('📸 Capturing screenshot for:', currentDomain);
 
-    chrome.tabs.captureVisibleTab(null, { format: 'jpeg', quality: 50 }, async (dataUrl) => {
-      if (chrome.runtime.lastError) {
-        console.error('Screenshot error:', chrome.runtime.lastError);
-        return;
+    const screenshotUrl = await chrome.tabs.captureVisibleTab(null, {
+      format: 'jpeg',
+      quality: 85
+    });
+    lastCaptureTime = Date.now(); // Update last capture time
+
+    if (!screenshotUrl || !screenshotUrl.startsWith('data:image/jpeg;base64,')) {
+      throw new Error('Invalid screenshot data');
+    }
+
+    console.log('🌐 Sending analysis request to server...');
+
+    // Prepare task context
+    let taskContext = '';
+    if (userTasks.length > 0 || parasiteTasks.length > 0) {
+      taskContext = 'Active tasks:\n';
+      if (userTasks.length > 0) {
+        taskContext += userTasks.filter(t => !t.completed).map(t => `- ${t.title}`).join('\n') + '\n';
+      }
+      if (parasiteTasks.length > 0) {
+        taskContext += 'Priority tasks:\n';
+        taskContext += parasiteTasks.filter(t => !t.completed).map(t => `- ${t.title}`).join('\n') + '\n';
+      }
+      if (currentFocusTask) {
+        taskContext += `Focus task: ${currentFocusTask}\n`;
+      }
+    }
+
+    // Known entertainment domains
+    const entertainmentDomains = [
+      'youtube.com',
+      'netflix.com',
+      'twitch.tv',
+      'instagram.com',
+      'facebook.com',
+      'twitter.com',
+      'tiktok.com',
+      'reddit.com',
+      'slither.io',
+      'games',
+      'gaming'
+    ];
+
+    // Check if current domain is entertainment
+    const isEntertainment = entertainmentDomains.some(domain =>
+      currentDomain.includes(domain) || tab.url.includes(domain)
+    );
+
+    console.log('Request data:', {
+      url: tab.url,
+      title: tab.title,
+      threshold: settings.threshold,
+      taskContext,
+      hasTasks: userTasks.length > 0 || parasiteTasks.length > 0,
+      interventionStyle: settings.interventionStyle,
+      isEntertainment
+    });
+
+    try {
+      // Send to server for analysis
+      const response = await fetch('http://localhost:3001/analyze', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          image: screenshotUrl,
+          url: tab.url,
+          title: tab.title,
+          threshold: settings.threshold,
+          taskContext,
+          hasTasks: userTasks.length > 0 || parasiteTasks.length > 0,
+          interventionStyle: settings.interventionStyle,
+          isEntertainment
+        })
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Server error: ${response.status} - ${errorText}`);
       }
 
-      console.log('Screenshot captured successfully.');
+      const result = await response.json();
+      console.log('📈 Analysis result:', {
+        unproductive: result.unproductive,
+        productivityScore: result.productivityScore,
+        message: result.message
+      });
 
-      try {
-        // Combine tasks from both sources
-        const allTasks = [...userTasks, ...parasiteTasks];
-        console.log('Active tasks:', allTasks.filter(task => !task.completed));
+      // Store analysis result in history
+      const currentAnalysis = {
+        timestamp: Date.now(),
+        url: tab.url,
+        domain: currentDomain,
+        unproductive: result.unproductive,
+        productivityScore: result.productivityScore,
+        message: result.message
+      };
 
-        // Prepare task-related data for the analysis
-        let taskContext = '';
-        const activeTasks = allTasks.filter(task => !task.completed);
+      recentAnalyses.set(currentDomain, currentAnalysis);
 
-        // Check for focus tasks from either source
-        const focusedTask = userTasks.find(task => task.id === currentFocusTask) ||
-          parasiteTasks.find(task => task.id === currentFocusParasite);
+      // Trim history if needed
+      if (recentAnalyses.size > MAX_HISTORY_SIZE) {
+        const oldestKey = Array.from(recentAnalyses.keys())[0];
+        recentAnalyses.delete(oldestKey);
+      }
 
-        if (focusedTask) {
-          console.log('Current focus task:', focusedTask);
-        }
-
-        if (activeTasks.length > 0) {
-          // Start with regular tasks
-          if (userTasks.filter(task => !task.completed).length > 0) {
-            taskContext += `Active tasks:\n${userTasks.filter(task => !task.completed).map(t => `- ${t.title}`).join('\n')}\n\n`;
-          }
-
-          // Add parasite tasks with priority
-          const parasiteActiveTasks = parasiteTasks.filter(task => !task.completed);
-          if (parasiteActiveTasks.length > 0) {
-            taskContext += `Active tasks with priority:\n${parasiteActiveTasks.map(t => `- ${t.title} (Priority: ${t.priority})`).join('\n')}\n\n`;
-          }
-
-          if (focusedTask) {
-            taskContext += `Current focus task: ${focusedTask.title}${focusedTask.priority ? ` (Priority: ${focusedTask.priority})` : ''}\n\n`;
-          }
-        }
-
-        console.log('Sending analysis request to backend...');
-        const response = await fetch('http://localhost:3001/analyze', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            image: dataUrl,
-            url: tab.url,
-            title: tab.title,
-            threshold: settings.threshold,
-            taskContext: taskContext,
-            hasTasks: activeTasks.length > 0,
-            interventionStyle: settings.interventionStyle
-          }),
-        });
-
-        if (!response.ok) {
-          console.error('Backend returned an error:', response.status, response.statusText);
-          return;
-        }
-
-        const result = await response.json();
-        console.log('Analysis result:', result);
-
-        // When adding new analysis
-        const currentAnalysis = {
-          timestamp: new Date().getTime(),
+      // Check if notification is needed
+      if (result.unproductive || result.productivityScore < settings.threshold) {
+        console.log('⚠️ Low productivity detected, preparing notification...');
+        const notificationContext = {
           url: tab.url,
-          domain: currentDomain,
-          unproductive: result.unproductive,
+          tabTitle: tab.title,
           productivityScore: result.productivityScore,
-          message: result.message
+          taskContext: taskContext,
+          interventionStyle: settings.interventionStyle,
+          geminiApiKey: settings.geminiApiKey
         };
 
-        // Update domain's analysis history
-        const domainAnalyses = recentAnalyses.get(currentDomain) || [];
-        domainAnalyses.unshift(currentAnalysis);
-
-        // Maintain max size per domain
-        if (domainAnalyses.length > MAX_HISTORY_SIZE) {
-          domainAnalyses.pop();
-        }
-
-        recentAnalyses.set(currentDomain, domainAnalyses);
-
-        // Save to storage
-        const recentAnalysesByDomain = Object.fromEntries(recentAnalyses);
-        chrome.storage.local.set({ recentAnalysesByDomain });
-
-        // Check if should notify
-        if (result.unproductive) {
-          console.log('Unproductive site detected. Checking if should notify...');
-          const shouldNotify = determineIfShouldNotify(tab.url);
-          console.log('Should notify:', shouldNotify);
-
-          if (shouldNotify) {
-            sendNotification(
-              'Distracting Site Detected',
-              `You're on a distracting site: ${tab.url}. Would you like to block it?`
-            );
-            console.log('Notification sent for unproductive site.');
-          } else {
-            console.log('Unproductive site detected but notification suppressed based on intervention style.');
+        let message = result.message || `Productivity: ${result.productivityScore}%`;
+        if (settings.useGemini && settings.geminiApiKey) {
+          const geminiMessage = await generateGeminiMessage(notificationContext);
+          if (geminiMessage) {
+            message = geminiMessage;
           }
-        } else {
-          console.log('Productive site detected.');
         }
-      } catch (err) {
-        console.error('Error in analysis process:', err);
+
+        await sendNotification(
+          'Productivity Alert',
+          message,
+          notificationContext
+        );
       }
-    });
-  } catch (error) {
-    console.error('Capture error:', error);
-  }
-}
-
-/********************************************************
- * 4) REAL-TIME DOMAIN USAGE TRACKING (1-SECOND INTERVAL)
- ********************************************************/
-function startDomainTrackingTimer() {
-  // Every second, increment time for the *current* domain
-  setInterval(() => {
-    if (!isActive || !currentDomain) return;
-
-    const now = Date.now();
-    const elapsed = now - domainStartTime; // ms
-    timeSpent[currentDomain] = (timeSpent[currentDomain] || 0) + elapsed;
-
-    // Reset the start time to "now" so next second picks up from here
-    domainStartTime = now;
-
-    // Save to storage so the popup can see up-to-date data
-    chrome.storage.local.set({ timeSpent });
-  }, 1000);
-}
-
-/********************************************************
- * 5) DETECT DOMAIN CHANGES
- ********************************************************/
-// Whenever user switches tabs
-chrome.tabs.onActivated.addListener(async (activeInfo) => {
-  // We finalize the old domain's partial second right now
-  finalizeCurrentDomain();
-
-  try {
-    const tab = await chrome.tabs.get(activeInfo.tabId);
-    const domain = getDomain(tab.url);
-    if (domain) {
-      startTimingDomain(domain);
-    }
-  } catch (err) {
-    console.error('Error in onActivated:', err);
-  }
-});
-
-// Whenever user navigates within the same tab
-chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-  if (changeInfo.url) {
-    finalizeCurrentDomain();
-    const domain = getDomain(changeInfo.url);
-    if (domain) {
-      startTimingDomain(domain);
-    }
-  }
-});
-
-/** Helper to parse domain name from URL */
-function getDomain(urlString) {
-  try {
-    return new URL(urlString).hostname; // e.g. "www.reddit.com"
-  } catch {
-    return null;
-  }
-}
-
-/** Called right before switching to another domain. */
-function finalizeCurrentDomain() {
-  if (!currentDomain || domainStartTime === null) {
-    return;
-  }
-  // The last partial second
-  const now = Date.now();
-  const elapsed = now - domainStartTime;
-  timeSpent[currentDomain] = (timeSpent[currentDomain] || 0) + elapsed;
-
-  // Reset
-  currentDomain = null;
-  domainStartTime = null;
-  chrome.storage.local.set({ timeSpent });
-}
-
-/** Called whenever a new domain starts. */
-function startTimingDomain(domain) {
-  currentDomain = domain;
-  domainStartTime = Date.now();
-}
-
-/********************************************************
- * 6) LISTEN FOR MESSAGES FROM POPUP (SETTINGS, ETC.)
- ********************************************************/
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.action === 'updateSettings') {
-    // Update local settings + restart screenshot timer
-    settings = message.settings;
-    chrome.storage.local.set({ settings });
-    startScreenshotTimer();
-  } else if (message.action === 'toggleActive') {
-    // Pause or resume extension
-    isActive = message.isActive;
-    chrome.storage.local.set({ isActive });
-    if (!isActive) {
-      finalizeCurrentDomain();
-      // stop screenshot timer
-      if (screenshotTimer) clearInterval(screenshotTimer);
-      console.log('Extension paused, domain tracking & screenshots stopped.');
-    } else {
-      startTimingDomain(currentDomain); // If you want to resume same domain
-      startScreenshotTimer();
-    }
-  }
-});
-
-// Listener for notification clicks (dismiss)
-chrome.notifications.onClicked.addListener((id) => {
-  chrome.notifications.clear(id); // Dismiss notification
-});
-
-// Listener for notification close
-chrome.notifications.onClosed.addListener((id) => {
-  ACTIVE_NOTIFICATIONS.delete(id); // Cleanup
-});
-
-// Unified handler for all notification interactions
-const handleInteraction = async (notificationId, actionType) => {
-  if (!ACTIVE_NOTIFICATIONS.has(notificationId)) return;
-
-  const context = ACTIVE_NOTIFICATIONS.get(notificationId);
-  ACTIVE_NOTIFICATIONS.delete(notificationId);
-
-  // Immediate cleanup
-  chrome.notifications.clear(notificationId);
-  console.log("ACTION");
-  if (actionType === 'block') {
-    // Block the website and close the tab
-    console.log("BLOCKING");
-    try {
-      await blockWebsite(context.url);
-      chrome.tabs.remove(context.tabId);
     } catch (error) {
-      console.error('Error blocking website:', error);
+      console.error('❌ Analysis error:', error);
+      // Log more details about the error
+      if (error.message.includes('fetch')) {
+        console.log('🔄 Server connection error, will retry in 10 seconds...');
+        setTimeout(captureAndAnalyze, 10000);
+      } else {
+        console.error('Error details:', {
+          message: error.message,
+          stack: error.stack,
+          cause: error.cause
+        });
+      }
+    }
+  } catch (error) {
+    if (error.message.includes('MAX_CAPTURE_VISIBLE_TAB_CALLS_PER_SECOND')) {
+      console.log('⏳ Rate limit hit, will retry in 1 second...');
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      return captureAndAnalyze(); // Retry after delay
+    } else {
+      console.error('❌ Screenshot capture failed:', error);
     }
   }
-};
+}
+
+// Initialize extension
+async function initializeExtension() {
+  console.log('🔄 Initializing extension...');
+
+  try {
+    // Load settings from storage
+    const data = await chrome.storage.local.get(['settings', 'isActive']);
+    console.log('📦 Loaded data from storage:', data);
+
+    if (data.settings) {
+      settings = { ...settings, ...data.settings };
+      console.log('⚙️ Updated settings:', settings);
+    }
+
+    if (typeof data.isActive !== 'undefined') {
+      isActive = data.isActive;
+      console.log('🔄 Updated active state:', isActive);
+    }
+
+    // Start the screenshot timer
+    startScreenshotTimer();
+
+    console.log('✅ Extension initialized successfully');
+  } catch (error) {
+    console.error('❌ Error initializing extension:', error);
+  }
+}
+
+// Initialize extension when service worker starts
+chrome.runtime.onStartup.addListener(() => {
+  console.log('🔄 Service worker starting up, initializing...');
+  initializeExtension();
+});
+
+// Also initialize on installation
+chrome.runtime.onInstalled.addListener(() => {
+  console.log('📦 Extension installed/updated, initializing...');
+  initializeExtension();
+});
+
+// Initialize immediately for development
+initializeExtension();
+
+// Debug logging
+console.log('🚀 Background script loaded');
+
+// Log successful initialization
+console.log("✅ Service worker initialized successfully");

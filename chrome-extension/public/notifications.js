@@ -1,61 +1,69 @@
-// filepath: /Users/Lucas/Desktop/Dev/wildhacks2025/chrome-extension/public/notifications.js
+// notifications.js - Final Working Solution
 import { blockWebsite } from './blockUtils.js';
 
-/**
- * Sends a notification to the user.
- * @param {string} title - The title of the notification.
- * @param {string} message - The message body of the notification.
- * @param {Array} [buttons] - Optional action buttons for the notification.
- * @param {Function} [callback] - Optional callback for when the notification is created.
- */
-export function sendNotification(title, message, buttons = [], callback) {
-    chrome.notifications.create('distracting-site', {
-        title,
-        message,
-        type: 'basic',
-        iconUrl: 'icon.jpg',
-        buttons,
-    }, (notificationId) => {
-        if (chrome.runtime.lastError) {
-            console.error('Notification error:', chrome.runtime.lastError.message);
-        } else {
-            console.log('Notification created with ID:', notificationId);
-        }
-        if (callback) callback(notificationId);
-    });
-}
+const ACTIVE_NOTIFICATIONS = new Map();
 
-/**
- * Handles notification button clicks.
- */
-export function handleNotificationClicks() {
-    chrome.notifications.onButtonClicked.addListener((notificationId, buttonIndex) => {
-        if (notificationId === 'distracting-site') {
-            console.log(`Button clicked: ${buttonIndex}`);
+export function sendNotification(title, message) {
+    chrome.windows.getCurrent({ populate: true }, (window) => {
+        const tab = window.tabs.find(t => t.active);
+        if (!tab) return;
 
-            // Clear the notification immediately
-            chrome.notifications.clear(notificationId);
+        const notificationId = `distract-notif-${Date.now()}-${Math.random()}`;
+        const targetUrl = new URL(tab.url).hostname;
 
-            if (buttonIndex === 0) { // "Block" button clicked
-                chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-                    if (tabs.length > 0) {
-                        const url = new URL(tabs[0].url).hostname;
-                        blockWebsite(url); // Call the blockWebsite function
-                        console.log(`Blocked site: ${url}`);
-                    } else {
-                        console.error('No active tab found to block.');
-                    }
-                });
+        // Store context before creation
+        ACTIVE_NOTIFICATIONS.set(notificationId, {
+            url: targetUrl,
+            tabId: tab.id,
+            windowId: window.id
+        });
+
+        chrome.notifications.create(notificationId, {
+            type: 'basic',
+            iconUrl: "icon.jpg",
+            title,
+            message,
+            buttons: [{ title: 'Block' }],
+        }, () => {
+            if (chrome.runtime.lastError) {
+                console.error('Notification failed:', chrome.runtime.lastError);
+                ACTIVE_NOTIFICATIONS.delete(notificationId);
             }
-        }
-    });
-
-    chrome.notifications.onClicked.addListener((notificationId) => {
-        console.log(`Notification clicked: ${notificationId}`);
-        chrome.notifications.clear(notificationId); // Clear notification on click
-    });
-
-    chrome.notifications.onClosed.addListener((notificationId, byUser) => {
-        console.log(`Notification closed: ${notificationId}, by user: ${byUser}`);
+        });
     });
 }
+// Unified handler for all notification interactions
+const handleInteraction = (notificationId, actionType) => {
+    if (!ACTIVE_NOTIFICATIONS.has(notificationId)) return;
+
+    const context = ACTIVE_NOTIFICATIONS.get(notificationId);
+    ACTIVE_NOTIFICATIONS.delete(notificationId);
+
+    // Immediate cleanup
+    chrome.notifications.clear(notificationId);
+    console.log("ACTION");
+    if (actionType === 'block') {
+        // Block the website and close the tab
+        console.log("BLOCKING");
+        blockWebsite(context.url);
+        chrome.tabs.remove(context.tabId);
+    }
+};
+
+// Listener for button clicks
+chrome.notifications.onButtonClicked.addListener((id, btnIdx) => {
+    console.log("click!");
+    if (btnIdx === 0) {
+        handleInteraction(id, 'block'); // Block button
+    }
+});
+
+// Listener for notification clicks (dismiss)
+chrome.notifications.onClicked.addListener((id) => {
+    chrome.notifications.clear(id); // Dismiss notification
+});
+
+// Listener for notification close
+chrome.notifications.onClosed.addListener((id) => {
+    ACTIVE_NOTIFICATIONS.delete(id); // Cleanup
+});

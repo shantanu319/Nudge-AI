@@ -7,9 +7,16 @@
     "activeTab",
     "storage",
     "notifications",
+    "windows",
     "scripting",
     "tabs",
     "declarativeNetRequest"
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["icon.jpg"],
+      "matches": ["<all_urls>"]
+    }
   ],
   "background": {
     "service_worker": "background.js",

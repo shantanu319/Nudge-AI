@@ -25,10 +25,12 @@ export default function TaskForm({ onSubmit }) {
                 />
                 <div className={styles.priorityGroup}>
                     <select
+                        className={styles.select}
                         value={newPriority}
                         onChange={(e) => setNewPriority(e.target.value)}
-                        className={styles.select}
+                        title="Task Priority"
                     >
+                        <option value="" disabled>Priority</option>
                         <option value="High">High</option>
                         <option value="Medium">Medium</option>
                         <option value="Low">Low</option>

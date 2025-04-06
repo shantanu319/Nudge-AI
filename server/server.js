@@ -19,7 +19,7 @@ app.use(cors({
 app.use(express.json({ limit: '50mb' })); // Increase limit for image data
 
 // Google Gemini API endpoint (using the latest recommended model for vision)
-const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
+const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
 // Get API key from environment variables
 const API_KEY = process.env.GEMINI_API_KEY;
 
@@ -94,7 +94,23 @@ app.post('/analyze', async (req, res) => {
     }
 
     // Get task information from request if available
-    const { taskContext, hasTasks, interventionStyle, isEntertainment, timeSpent, timeOfDay, lastNotificationTime, previousDismissals, batteryStatus, siteCategory, timeSinceFirstSeen } = req.body;
+    const { 
+      taskContext, 
+      hasTasks, 
+      interventionStyle, 
+      isEntertainment, 
+      timeSpent, 
+      timeOfDay, 
+      lastNotificationTime, 
+      previousDismissals, 
+      batteryStatus, 
+      siteCategory, 
+      timeSinceFirstSeen
+      // Calendar integration disabled until Chrome Web Store approval
+      // calendarStatus,
+      // currentEvent,
+      // nextEvent
+    } = req.body;
 
     // Don't notify if we just started tracking
     if (timeSinceFirstSeen < 1) { // Less than 1 minute
@@ -131,6 +147,11 @@ Context:
 - Battery status: ${batteryStatus || 'unknown'}
 ${hasTasks ? `- Active tasks:\n${taskContext}\n` : '- No active tasks'}
 - Focus style: ${interventionStyle ? `${interventionStyle.replace('_', ' ')} (${getInterventionStyleDescription(interventionStyle)})` : 'default'}
+/* Calendar integration disabled until Chrome Web Store approval
+- Calendar status: ${calendarStatus || 'FREE'}
+${currentEvent ? `- Current calendar event: ${currentEvent}` : ''}
+${nextEvent ? `- Next calendar event: ${nextEvent}` : ''}
+*/
 
 Time Limits by Style and Category (standard | off-peak):
 
@@ -176,9 +197,17 @@ Context Modifiers:
 - Charging: +20% time
 - Previous dismissals: +10min per dismiss
 - Active tasks: -20% time if unrelated to tasks
+/* Calendar integration disabled until Chrome Web Store approval
+- In meeting/focus time: +100% time (be more lenient during scheduled meetings)
+- Minutes before next meeting: -30% time if <15 minutes before a meeting
+*/
 
 Important Rules:
 1. DO NOT send notifications if time_spent is 0 or if site was just opened
+/* Calendar integration disabled until Chrome Web Store approval
+2. DO NOT send notifications during meetings unless it's a very long entertainment session
+3. Be more lenient right before scheduled meetings (within 15 minutes)
+*/
 2. Minimum time between notifications:
    - Drill Sergeant: 10 minutes
    - Vigilant Mentor: 15 minutes

@@ -15,8 +15,15 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["icon.jpg"],
+      "resources": ["icon.jpg", "blocked.html"],
       "matches": ["<all_urls>"]
+    }
+  ],
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["blockOverlay.js"],
+      "run_at": "document_start"
     }
   ],
   "background": {
@@ -41,5 +48,6 @@
     "http://localhost:3000/*",
     "http://localhost:3001/*",
     "<all_urls>"
-  ]
+  ],
+  "_note": "OAuth2 config removed until app is approved for Chrome Web Store"
 }

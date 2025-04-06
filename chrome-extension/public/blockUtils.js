@@ -63,6 +63,26 @@ export const blockWebsite = (url) => {
                                 // Ignore errors here as the popup might not be open
                                 console.log('Popup not available to receive update');
                             });
+                            
+                            // Check if any open tabs match the newly blocked domain and reload them
+                            // This ensures the content script overlay is triggered immediately
+                            chrome.tabs.query({}, (tabs) => {
+                                tabs.forEach(tab => {
+                                    try {
+                                        // Only process http/https URLs
+                                        if (tab.url && (tab.url.startsWith('http://') || tab.url.startsWith('https://'))) {
+                                            const tabDomain = new URL(tab.url).hostname.replace(/^www\./, '');
+                                            // Check if tab domain matches or is subdomain of blocked domain
+                                            if (tabDomain === rootDomain || tabDomain.endsWith('.' + rootDomain)) {
+                                                console.log(`Found open tab matching blocked domain ${rootDomain}, reloading...`);
+                                                chrome.tabs.reload(tab.id);
+                                            }
+                                        }
+                                    } catch (e) {
+                                        console.error('Error checking tab domain:', e);
+                                    }
+                                });
+                            });
 
                             resolve();
                         });

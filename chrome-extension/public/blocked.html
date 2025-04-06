@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Focus Time - Site Blocked</title>
+  <style>
+    :root {
+      /* Primary Colors */
+      --color-primary: #4f46e5;
+      --color-primary-light: #6366f1;
+      --color-primary-dark: #4338ca;
+
+      /* Secondary Colors */
+      --color-secondary: #ec4899;
+      --color-secondary-light: #f472b6;
+
+      /* Text Colors */
+      --color-text-primary: #1e293b;
+      --color-text-secondary: #64748b;
+      --color-text-light: #f8fafc;
+
+      /* Background Colors */
+      --color-bg-primary: #f1f5f9;
+      --color-bg-secondary: #ffffff;
+      --color-bg-tertiary: #f8fafc;
+
+      /* Border Colors */
+      --color-border: #e2e8f0;
+
+      /* State Colors */
+      --color-active: #4f46e5;
+      --color-inactive: #94a3b8;
+      --color-error: #ef4444;
+      --color-success: #10b981;
+      --color-warning: #f59e0b;
+    }
+    
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      padding: 0;
+      height: 100vh;
+      width: 100vw;
+      background: linear-gradient(135deg, var(--color-primary-light) 0%, var(--color-primary-dark) 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      animation: fadeIn 0.8s ease-in;
+    }
+    
+    .block-container {
+      background-color: rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(12px);
+      border-radius: 16px;
+      padding: 40px;
+      text-align: center;
+      max-width: 500px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+      transform: translateY(0);
+      animation: slideUp 0.6s ease-out forwards;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    
+    h1 {
+      color: var(--color-text-light);
+      font-size: 32px;
+      margin-bottom: 20px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+    
+    p {
+      color: var(--color-text-light);
+      font-size: 18px;
+      line-height: 1.6;
+      margin-bottom: 30px;
+      opacity: 0.9;
+    }
+    
+    .site-name {
+      font-weight: bold;
+      color: var(--color-secondary-light);
+      background: rgba(255, 255, 255, 0.15);
+      padding: 8px 16px;
+      border-radius: 8px;
+      margin: 0 5px;
+      display: inline-block;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    
+    .action-buttons {
+      display: flex;
+      justify-content: center;
+      gap: 15px;
+      margin-top: 30px;
+    }
+    
+    button {
+      padding: 12px 28px;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    }
+    
+    .primary-btn {
+      background-color: var(--color-bg-secondary);
+      color: var(--color-primary);
+    }
+    
+    .primary-btn:hover {
+      background-color: var(--color-bg-tertiary);
+      transform: translateY(-3px);
+      box-shadow: 0 6px 15px rgba(0, 0, 0, 0.15);
+    }
+    
+    .secondary-btn {
+      background-color: transparent;
+      color: var(--color-text-light);
+      border: 1px solid var(--color-text-light);
+    }
+    
+    .secondary-btn:hover {
+      background-color: rgba(255, 255, 255, 0.1);
+      transform: translateY(-3px);
+    }
+    
+    .zen-circle {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      border: 3px solid rgba(255, 255, 255, 0.8);
+      margin: 0 auto 30px;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .zen-circle::before {
+      content: '';
+      position: absolute;
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(5px);
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    
+    @keyframes slideUp {
+      from {
+        transform: translateY(30px);
+        opacity: 0;
+      }
+      to {
+        transform: translateY(0);
+        opacity: 1;
+      }
+    }
+
+    #blockMessage {
+      animation: breathe 4s infinite ease-in-out;
+    }
+
+    @keyframes breathe {
+      0%, 100% { opacity: 0.8; }
+      50% { opacity: 1; }
+    }
+    
+    .focus-quote {
+      font-style: italic;
+      opacity: 0.8;
+      margin-top: 30px;
+      font-size: 16px;
+    }
+  </style>
+</head>
+<body>
+  <div class="block-container">
+    <div class="zen-circle"></div>
+    <h1>Mindful Pause</h1>
+    <p>
+      <span id="blockMessage">This site has been blocked to help you maintain focus on what matters.</span>
+    </p>
+    <p>You're trying to access: <span class="site-name" id="blockedSite">...</span></p>
+    <div class="action-buttons">
+      <button class="primary-btn" id="backButton">Return to Focus</button>
+      <button class="secondary-btn" id="allowButton">Allow 5 Minutes</button>
+    </div>
+    <p class="focus-quote">"The key to productivity is not attention to detail, it's attention to purpose."</p>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      // Extract blocked domain from the query parameter
+      const urlParams = new URLSearchParams(window.location.search);
+      const blockedDomain = urlParams.get('domain') || 'this website';
+      
+      // Format the domain for display (make it more user-friendly)
+      let displayDomain = blockedDomain;
+      
+      // If we have a valid domain, format it nicely
+      if (displayDomain && displayDomain !== 'this website') {
+        // Simple formatting: capitalize first letter of each part
+        displayDomain = displayDomain.split('.')
+          .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+          .join('.');
+      }
+      
+      // Display the blocked site
+      document.getElementById('blockedSite').textContent = displayDomain;
+      
+      // Check if we're in an iframe
+      const isInIframe = window !== window.parent;
+      
+      // Back button functionality
+      document.getElementById('backButton').addEventListener('click', function() {
+        if (isInIframe) {
+          // If we're in an iframe, send a message to the parent window
+          window.parent.postMessage({ action: 'goBack' }, '*');
+        } else {
+          // Direct navigation if not in an iframe
+          window.history.back();
+        }
+      });
+      
+      // Allow temporary access button
+      document.getElementById('allowButton').addEventListener('click', function() {
+        // Update the message
+        document.getElementById('blockMessage').textContent = "Take a moment to consider if this is aligned with your priorities.";
+        
+        // In a real implementation, this would communicate with the extension's background script
+        // to temporarily allow access to the blocked site
+        // For example:
+        /*
+        if (isInIframe) {
+          window.parent.postMessage({ 
+            action: 'temporaryAllow', 
+            domain: blockedDomain,
+            duration: 5 // minutes
+          }, '*');
+        } else {
+          chrome.runtime.sendMessage({
+            action: 'temporaryAllow',
+            domain: blockedDomain,
+            duration: 5 // minutes
+          });
+        }
+        */
+      });
+      
+      // Array of mindfulness quotes
+      const quotes = [
+        "The key to productivity is not attention to detail, it's attention to purpose.",
+        "Focus on being productive instead of busy.",
+        "Your focus determines your reality.",
+        "Mindfulness isn't difficult. What's difficult is remembering to be mindful.",
+        "The present moment is the only time over which we have dominion."
+      ];
+      
+      // Select a random quote
+      const randomQuote = quotes[Math.floor(Math.random() * quotes.length)];
+      document.querySelector('.focus-quote').textContent = `"${randomQuote}"`;
+    });
+  </script>
+</body>
+</html>

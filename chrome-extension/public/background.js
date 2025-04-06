@@ -5,6 +5,10 @@ self.document = null;
 // Debug logging
 console.log('🚀 Service worker starting...');
 
+// Import modules
+// Google Calendar integration (commented out until Chrome Web Store approval)
+// import { fetchCalendarEvents, getUserCalendarStatus, getCalendarContextForAI, startPeriodicCalendarRefresh } from './calendar.js';
+
 // Shared state
 const ACTIVE_NOTIFICATIONS = new Map();
 const GEMINI_CACHE = new Map();
@@ -393,32 +397,83 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 const CHECK_INTERVAL = 5 * 60 * 1000; // 5 minutes in milliseconds
 
 // Initialize extension
-async function initializeExtension() {
-  console.log('🔄 Initializing extension...');
-
-  try {
-    // Load settings from storage
-    const data = await chrome.storage.sync.get(null);
-    console.log('📦 Loaded data from storage:', data);
-
-    // Initialize default settings if not set
-    if (!data.settings) {
-      data.settings = {
-        isActive: true,
-        threshold: 50,
-        interventionStyle: 'steady_coach',
-        useGemini: true,
-        geminiApiKey: ''
+function initializeExtension() {
+  console.log('🔧 Initializing extension...');
+  
+  // Load extension settings
+  chrome.storage.local.get([
+    'active',
+    'captureInterval',
+    'threshold',
+    'interventionStyle',
+    'serverUrl',
+    'serverKey',
+    'enableCalendarIntegration'
+  ], (result) => {
+    // Default settings if nothing is stored
+    if (Object.keys(result).length === 0) {
+      console.log('⚙️ Initializing with default settings');
+      settings = {
+        active: true,
+        captureInterval: 10, // seconds
+        threshold: 0.7, // 0-1 productivity threshold
+        interventionStyle: 'Medium', // Notification style
+        serverUrl: 'http://localhost:3001',
+        serverKey: '',
+        enableCalendarIntegration: true // Enable calendar integration by default
       };
-      await chrome.storage.sync.set({ settings: data.settings });
+      
+      // Save default settings
+      chrome.storage.local.set(settings);
+    } else {
+      console.log('⚙️ Loaded saved settings:', result);
+      settings = {
+        active: result.active ?? true,
+        captureInterval: result.captureInterval ?? 10,
+        threshold: result.threshold ?? 0.7,
+        interventionStyle: result.interventionStyle ?? 'Medium',
+        serverUrl: result.serverUrl ?? 'http://localhost:3001',
+        serverKey: result.serverKey ?? '',
+        enableCalendarIntegration: result.enableCalendarIntegration ?? true
+      };
     }
 
+    // Update global state
+    isActive = settings.active;
+    
+    // Load saved tasks
+    chrome.storage.local.get(['tasks', 'parasiteTasks', 'focusTask'], (taskStore) => {
+      if (taskStore.tasks && Array.isArray(taskStore.tasks)) {
+        userTasks = taskStore.tasks;
+      }
+      
+      if (taskStore.parasiteTasks && Array.isArray(taskStore.parasiteTasks)) {
+        parasiteTasks = taskStore.parasiteTasks;
+      }
+      
+      if (taskStore.focusTask) {
+        currentFocusTask = taskStore.focusTask;
+      }
+      
+      console.log('📋 Loaded tasks:', { 
+        userTasks: userTasks.length,
+        parasiteTasks: parasiteTasks.length, 
+        focusTask: currentFocusTask
+      });
+    });
+    
+    // Initialize Google Calendar integration if enabled (currently disabled)
+    /*
+    if (settings.enableCalendarIntegration) {
+      console.log('📅 Initializing Google Calendar integration...');
+      startPeriodicCalendarRefresh();
+    }
+    */
+    
     // Start screenshot timer
-    startScreenshotTimer(data.settings);
-
-  } catch (error) {
-    console.error('❌ Error initializing extension:', error);
-  }
+    startScreenshotTimer(settings);
+    console.log('✅ Extension initialized successfully');
+  });
 }
 
 // Start screenshot timer
@@ -431,7 +486,7 @@ function startScreenshotTimer(settings) {
     clearInterval(screenshotTimer);
   }
 
-  if (!settings.isActive) {
+  if (!settings.active) {
     console.log('⏸️ Extension is not active, timer not started');
     return;
   }
@@ -458,6 +513,38 @@ async function captureAndAnalyze() {
   }
 
   console.log('🟢 Starting screenshot capture and analysis...');
+
+  // Check calendar status first if integration is enabled
+  // (Google Calendar integration currently disabled)
+  /*
+  let calendarStatus = { isBusy: false, currentEvent: null };
+  let calendarContext = "";
+  
+  if (settings.enableCalendarIntegration) {
+    try {
+      calendarStatus = await getUserCalendarStatus();
+      calendarContext = await getCalendarContextForAI();
+      
+      console.log('📅 Calendar status:', { 
+        isBusy: calendarStatus.isBusy,
+        currentEvent: calendarStatus.currentEvent?.summary || 'None',
+        totalEvents: calendarStatus.totalEvents
+      });
+      
+      // If the user is in a meeting, potentially reduce notification frequency
+      if (calendarStatus.isBusy && calendarStatus.currentEvent) {
+        console.log('📅 User is currently busy according to calendar');
+      }
+    } catch (error) {
+      console.error('❌ Error getting calendar status:', error);
+      // Continue without calendar context if there's an error
+    }
+  }
+  */
+  
+  // Set default values since calendar integration is disabled
+  const calendarStatus = { isBusy: false };
+  const calendarContext = "";
 
   try {
     // Check if enough time has passed since last capture
@@ -554,6 +641,13 @@ async function captureAndAnalyze() {
         taskContext += `Focus task: ${currentFocusTask}\n`;
       }
     }
+    
+    // Add calendar context if available (calendar integration currently disabled)
+    /*
+    if (calendarContext) {
+      taskContext += '\nCalendar context:\n' + calendarContext;
+    }
+    */
 
     // Known entertainment domains
     const entertainmentDomains = [
@@ -608,6 +702,10 @@ async function captureAndAnalyze() {
           previousDismissals: notifContext.dismissals,
           batteryStatus,
           timeSinceFirstSeen: Math.floor((Date.now() - tracking.firstSeen) / 60000)
+          // Calendar integration disabled
+          // calendarStatus: calendarStatus.isBusy ? 'BUSY' : 'FREE',
+          // currentEvent: calendarStatus.currentEvent?.summary || null,
+          // nextEvent: calendarStatus.nextEvent?.summary || null
         })
       });
 
@@ -660,20 +758,43 @@ async function captureAndAnalyze() {
             localTime: tracking.totalTime
           });
         }
+        
+        // Check calendar status before sending notification (calendar integration disabled)
+        /*
+        let shouldSuppressNotification = false;
+        
+        if (settings.enableCalendarIntegration && calendarStatus.isBusy) {
+          // If user is in an important meeting, we might want to suppress notifications
+          if (calendarStatus.currentEvent && 
+              !calendarStatus.currentEvent.summary?.toLowerCase().includes('break')) {
+            console.log('📅 Suppressing notification due to calendar event:', 
+                       calendarStatus.currentEvent?.summary);
+            shouldSuppressNotification = true;
+          }
+        }
+        
+        if (!shouldSuppressNotification) {
+        */
+        // Calendar integration disabled - always show notifications when needed
+          const notificationContext = {
+            url: tab.url,
+            domain: currentDomain,
+            timeSpent: tracking.totalTime,
+            category: tracking.category,
+            suggestedBlockDuration: result.suggestedBlockDuration
+            // calendarBusy: calendarStatus.isBusy (calendar integration disabled)
+          };
 
-        const notificationContext = {
-          url: tab.url,
-          domain: currentDomain,
-          timeSpent: tracking.totalTime,
-          category: tracking.category,
-          suggestedBlockDuration: result.suggestedBlockDuration
-        };
-
-        await sendNotification(
-          'Focus Guardian',
-          result.notificationMessage,
-          notificationContext
-        );
+          await sendNotification(
+            'Focus Guardian',
+            result.notificationMessage,
+            notificationContext
+          );
+        /* Calendar integration disabled
+        } else {
+          console.log('🔕 Notification suppressed due to calendar status');
+        }
+        */
 
         // Update notification history
         notifContext.lastNotification = Date.now();
@@ -714,6 +835,25 @@ chrome.runtime.onStartup.addListener(() => {
 chrome.runtime.onInstalled.addListener(() => {
   console.log('📦 Extension installed/updated, initializing...');
   initializeExtension();
+});
+
+// Handle messages from popup
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  /* Google Calendar integration (disabled until Chrome Web Store approval)
+  if (request.action === 'refreshCalendar') {
+    console.log('🔄 Manual calendar refresh requested');
+    fetchCalendarEvents(true) // force refresh
+      .then(events => {
+        console.log(`📅 Calendar refreshed, ${events.length} events found`);
+        sendResponse({ success: true, count: events.length });
+      })
+      .catch(error => {
+        console.error('❌ Calendar refresh failed:', error);
+        sendResponse({ success: false, error: error.message });
+      });
+    return true; // Keep connection open for async response
+  }
+  */
 });
 
 // Initialize immediately for development

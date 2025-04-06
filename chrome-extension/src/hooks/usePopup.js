@@ -5,7 +5,8 @@ export function usePopup() {
     const [domainUsage, setDomainUsage] = useState({});
     const [settings, setSettings] = useState({
         interval: 5,
-        interventionStyle: 'drill_sergeant' // Default to most aggressive intervention style
+        threshold: 50,
+        interventionStyle: 'drill_sergeant'
     });
     const [isActive, setIsActive] = useState(true);
 
@@ -16,7 +17,14 @@ export function usePopup() {
             (res) => {
                 if (res.productivityStats) setStats(res.productivityStats);
                 if (res.timeSpent) setDomainUsage(res.timeSpent);
-                if (res.settings) setSettings(res.settings);
+                if (res.settings) {
+                    setSettings({
+                        interval: 5,
+                        threshold: 50,
+                        interventionStyle: 'drill_sergeant',
+                        ...res.settings
+                    });
+                }
                 if (res.isActive !== undefined) setIsActive(res.isActive);
             }
         );
@@ -26,7 +34,7 @@ export function usePopup() {
             if (areaName === 'local') {
                 if (changes.productivityStats) setStats(changes.productivityStats.newValue);
                 if (changes.timeSpent) setDomainUsage(changes.timeSpent.newValue);
-                if (changes.settings) setSettings(changes.settings.newValue);
+                if (changes.settings) setSettings(prev => ({ ...prev, ...changes.settings.newValue }));
                 if (changes.isActive) setIsActive(changes.isActive.newValue);
             }
         };
@@ -38,19 +46,16 @@ export function usePopup() {
     const toggleActive = () => {
         const newActive = !isActive;
         setIsActive(newActive);
-        chrome.storage.local.set({ isActive: newActive }, () => {
-            chrome.runtime.sendMessage({ action: 'toggleActive', isActive: newActive });
-        });
-    };
-
-    const saveSettings = () => {
-        chrome.storage.local.set({ settings }, () => {
-            chrome.runtime.sendMessage({ action: 'updateSettings', settings });
-        });
+        chrome.runtime.sendMessage({ action: 'toggleActive', isActive: newActive });
     };
 
     const updateSettings = (newSettings) => {
-        setSettings(newSettings);
+        const updatedSettings = { ...settings, ...newSettings };
+        setSettings(updatedSettings);
+        chrome.runtime.sendMessage({
+            action: 'updateSettings',
+            settings: updatedSettings
+        });
     };
 
     const updateStats = (isProductive) => {
@@ -70,7 +75,6 @@ export function usePopup() {
         settings,
         isActive,
         toggleActive,
-        saveSettings,
         updateSettings,
         updateStats
     };

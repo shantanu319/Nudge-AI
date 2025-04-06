@@ -133,3 +133,11 @@
 .saveButton:hover {
   background-color: var(--color-primary-dark);
 }
+
+.helperText {
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
+  margin-top: 0.5rem;
+  line-height: 1.4;
+  font-style: italic;
+}

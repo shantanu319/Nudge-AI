@@ -18,8 +18,8 @@ let parasiteTasks = [];
 let currentFocusParasite = null;
 
 // Variables for smart intervention
-let recentAnalyses = []; // Store recent screenshot analyses
-const MAX_HISTORY_SIZE = 12; // Maximum number of analyses to store
+let recentAnalyses = new Map(); // Store recent analyses by domain
+const MAX_HISTORY_SIZE = 20; // Increased to handle more history per domain
 
 // Intervention style thresholds - consecutive unproductive screenshots needed
 const INTERVENTION_THRESHOLDS = {
@@ -30,75 +30,48 @@ const INTERVENTION_THRESHOLDS = {
   zen_observer: 10    // Every 10 screenshots
 };
 
-// Message handling
+// Single message listener for all actions
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  // Dynamic website blocking
-  if (request.action === 'updateBlockedSites') {
-    const removeIds = currentRules.map(rule => rule.id);
-    let rules;
+  console.log('Received message:', request.action);
 
-    if (request.rules) {
-      rules = request.rules;
-    } else if (request.blockList) {
-      rules = request.blockList.map((url, index) => ({
-        id: index + 1,
-        priority: 1,
-        action: { type: 'block' },
-        condition: {
-          urlFilter: `||${url.replace(/https?:\/\//, '')}`,
-          resourceTypes: ['main_frame'],
-        },
-      }));
-    } else {
-      console.error('Invalid updateBlockedSites request format');
-      return;
-    }
+  switch (request.action) {
+    case 'updateSettings':
+      console.log('Updating settings:', request.settings);
+      settings = request.settings;
+      chrome.storage.local.set({ settings });
+      startScreenshotTimer();
+      break;
 
-    chrome.declarativeNetRequest.updateDynamicRules({
-      removeRuleIds: removeIds,
-      addRules: rules
-    }, () => {
-      if (chrome.runtime.lastError) {
-        console.error('Error updating dynamic rules:', chrome.runtime.lastError);
-        return;
-      }
+    case 'toggleActive':
+      console.log('Toggling active state:', request.isActive);
+      isActive = request.isActive;
+      chrome.storage.local.set({ isActive });
+      startScreenshotTimer();
+      break;
 
-      currentRules = rules;
-      chrome.storage.local.set({ blockedRules: rules }, () => {
-        if (chrome.runtime.lastError) {
-          console.error('Error saving blocked rules:', chrome.runtime.lastError);
-          return;
-        }
-        console.log('Rules updated and saved successfully');
-        sendResponse({ success: true });
-      });
-    });
-    return true; // Keep the message channel open for the async response
-  }
+    case 'updateTasks':
+      userTasks = request.tasks;
+      console.log('Tasks updated:', userTasks);
+      break;
 
-  // Productivity features
-  if (request.action === 'updateSettings') {
-    settings = request.settings;
-    startScreenshotTimer();
-  } else if (request.action === 'toggleActive') {
-    isActive = request.isActive;
-    startScreenshotTimer();
-  } else if (request.action === 'updateTasks') {
-    userTasks = request.tasks;
-    console.log('Tasks updated:', userTasks);
-  } else if (request.action === 'updateCurrentFocus') {
-    currentFocusTask = request.currentFocus;
-    console.log('Current focus task updated:', currentFocusTask);
-  } else if (request.action === 'updateParasiteTasks') {
-    parasiteTasks = request.tasks;
-    console.log('Parasite tasks updated:', parasiteTasks);
-  } else if (request.action === 'updateCurrentFocusParasite') {
-    currentFocusParasite = request.currentFocus;
-    console.log('Current focus parasite task updated:', currentFocusParasite);
+    case 'updateCurrentFocus':
+      currentFocusTask = request.currentFocus;
+      console.log('Current focus task updated:', currentFocusTask);
+      break;
+
+    case 'updateParasiteTasks':
+      parasiteTasks = request.tasks;
+      console.log('Parasite tasks updated:', parasiteTasks);
+      break;
+
+    case 'updateCurrentFocusParasite':
+      currentFocusParasite = request.currentFocus;
+      console.log('Current focus parasite task updated:', currentFocusParasite);
+      break;
   }
 });
 
-// Initialization
+// Single initialization block
 chrome.storage.local.get([
   'settings',
   'isActive',
@@ -108,18 +81,27 @@ chrome.storage.local.get([
   'currentFocus',
   'parasiteTasks',
   'currentFocusParasite',
-  'recentAnalyses'
+  'recentAnalysesByDomain'
 ], (result) => {
-  // Load settings
-  settings = result.settings || settings;
-  isActive = result.isActive ?? isActive;
+  console.log('Initializing from storage:', result);
 
-  // Initialize stats
-  if (!result.productivityStats) {
-    chrome.storage.local.set({ productivityStats: { productive: 0, unproductive: 0 } });
+  // Load settings with defaults
+  settings = {
+    interval: 1,
+    threshold: 50,
+    interventionStyle: 'drill_sergeant',
+    ...result.settings
+  };
+
+  // Load active state
+  isActive = result.isActive ?? true;
+
+  // Initialize or load recent analyses
+  if (result.recentAnalysesByDomain) {
+    recentAnalyses = new Map(Object.entries(result.recentAnalysesByDomain));
   }
 
-  // Restore blocked sites
+  // Load other state
   if (result.blockedRules) {
     currentRules = result.blockedRules;
     chrome.declarativeNetRequest.updateDynamicRules({
@@ -128,28 +110,22 @@ chrome.storage.local.get([
     });
   }
 
-  // Initialize tasks data from storage
-  if (result.tasks) {
-    userTasks = result.tasks;
-  }
-  if (result.currentFocus) {
-    currentFocusTask = result.currentFocus;
+  // Initialize tasks
+  userTasks = result.tasks || [];
+  currentFocusTask = result.currentFocus || null;
+  parasiteTasks = result.parasiteTasks || [];
+  currentFocusParasite = result.currentFocusParasite || null;
+
+  // Initialize productivity stats if missing
+  if (!result.productivityStats) {
+    chrome.storage.local.set({ productivityStats: { productive: 0, unproductive: 0 } });
   }
 
-  // Initialize parasite tasks
-  if (result.parasiteTasks) {
-    parasiteTasks = result.parasiteTasks;
-  }
-  if (result.currentFocusParasite) {
-    currentFocusParasite = result.currentFocusParasite;
-  }
-
-  // Initialize recent analyses
-  if (result.recentAnalyses) {
-    recentAnalyses = result.recentAnalyses;
-  }
-
+  // Start timers
   startScreenshotTimer();
+  startDomainTrackingTimer();
+
+  console.log('Background script initialized with settings:', settings);
 });
 
 /**
@@ -160,35 +136,24 @@ chrome.storage.local.get([
 function determineIfShouldNotify(currentUrl) {
   // Ensure settings.interventionStyle exists and is valid
   if (!settings.interventionStyle || !INTERVENTION_THRESHOLDS[settings.interventionStyle]) {
-    settings.interventionStyle = 'drill_sergeant'; // Default to most aggressive style
-    chrome.storage.local.set({ settings }); // Save the default
+    settings.interventionStyle = 'drill_sergeant';
+    chrome.storage.local.set({ settings });
   }
 
-  // Get the threshold for the current intervention style
   const threshold = INTERVENTION_THRESHOLDS[settings.interventionStyle] || 1;
-
-  // Get current domain
   const currentDomain = new URL(currentUrl).hostname;
 
-  // Get recent analyses for this domain
-  const domainAnalyses = recentAnalyses.filter(analysis => analysis.domain === currentDomain);
+  // Get domain's analysis history
+  const domainAnalyses = recentAnalyses.get(currentDomain) || [];
 
-  // Count consecutive unproductive instances
-  let consecutiveUnproductive = 0;
-  for (const analysis of domainAnalyses) {
-    if (analysis.unproductive) {
-      consecutiveUnproductive++;
-    } else {
-      break; // Break on first productive instance
-    }
-  }
+  // Count total unproductive instances in the recent history
+  const unproductiveCount = domainAnalyses.filter(analysis => analysis.unproductive).length;
 
-  // Log the current intervention status with friendly style name
+  // Log the current intervention status
   const styleName = settings.interventionStyle.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase());
-  console.log(`${styleName} mode: ${consecutiveUnproductive}/${threshold} consecutive unproductive instances on ${currentDomain}`);
+  console.log(`${styleName} mode: ${unproductiveCount}/${threshold} unproductive instances on ${currentDomain}`);
 
-  // Only notify if we have reached or exceeded the threshold
-  return consecutiveUnproductive >= threshold;
+  return unproductiveCount >= threshold;
 }
 
 // Timer management
@@ -244,10 +209,12 @@ chrome.storage.local.get(
  * 3) PERIODIC SCREENSHOT CAPTURE (EVERY N MINUTES)
  ********************************************************/
 function startScreenshotTimer() {
-  // Clear existing timer if any
+  // Clear any existing timer
   if (screenshotTimer) {
     clearInterval(screenshotTimer);
+    screenshotTimer = null;
   }
+
   if (!isActive) {
     console.log('Extension is inactive. Not starting screenshot timer.');
     return;
@@ -256,6 +223,9 @@ function startScreenshotTimer() {
   const intervalMs = settings.interval * 60 * 1000;
   screenshotTimer = setInterval(captureAndAnalyze, intervalMs);
   console.log(`Screenshot timer started: every ${settings.interval} minute(s).`);
+
+  // Do initial capture
+  captureAndAnalyze();
 }
 
 // Listen for messages from the popup
@@ -278,6 +248,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 async function captureAndAnalyze() {
+  console.log('Starting captureAndAnalyze, isActive:', isActive);
+
   if (!isActive) {
     console.log('Extension is inactive. Skipping capture and analysis.');
     return;
@@ -292,6 +264,9 @@ async function captureAndAnalyze() {
       return;
     }
 
+    const currentDomain = new URL(tab.url).hostname;
+    console.log('Current domain:', currentDomain);
+
     chrome.tabs.captureVisibleTab(null, { format: 'jpeg', quality: 50 }, async (dataUrl) => {
       if (chrome.runtime.lastError) {
         console.error('Screenshot error:', chrome.runtime.lastError);
@@ -303,6 +278,7 @@ async function captureAndAnalyze() {
       try {
         // Combine tasks from both sources
         const allTasks = [...userTasks, ...parasiteTasks];
+        console.log('Active tasks:', allTasks.filter(task => !task.completed));
 
         // Prepare task-related data for the analysis
         let taskContext = '';
@@ -312,8 +288,9 @@ async function captureAndAnalyze() {
         const focusedTask = userTasks.find(task => task.id === currentFocusTask) ||
           parasiteTasks.find(task => task.id === currentFocusParasite);
 
-        // Format parasite tasks with priority info
-        const parasiteActiveTasks = parasiteTasks.filter(task => !task.completed);
+        if (focusedTask) {
+          console.log('Current focus task:', focusedTask);
+        }
 
         if (activeTasks.length > 0) {
           // Start with regular tasks
@@ -322,6 +299,7 @@ async function captureAndAnalyze() {
           }
 
           // Add parasite tasks with priority
+          const parasiteActiveTasks = parasiteTasks.filter(task => !task.completed);
           if (parasiteActiveTasks.length > 0) {
             taskContext += `Active tasks with priority:\n${parasiteActiveTasks.map(t => `- ${t.title} (Priority: ${t.priority})`).join('\n')}\n\n`;
           }
@@ -329,11 +307,9 @@ async function captureAndAnalyze() {
           if (focusedTask) {
             taskContext += `Current focus task: ${focusedTask.title}${focusedTask.priority ? ` (Priority: ${focusedTask.priority})` : ''}\n\n`;
           }
-
-          taskContext += `When analyzing the screenshot, determine if the content is relevant to these tasks, especially the focus task if present.\n`;
-          taskContext += `Higher priority tasks should be weighted more heavily in your analysis.\n`;
         }
 
+        console.log('Sending analysis request to backend...');
         const response = await fetch('http://localhost:3001/analyze', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -344,32 +320,9 @@ async function captureAndAnalyze() {
             threshold: settings.threshold,
             taskContext: taskContext,
             hasTasks: activeTasks.length > 0,
-            interventionStyle: settings.interventionStyle // Include intervention style for context
+            interventionStyle: settings.interventionStyle
           }),
         });
-
-        if (!response.ok) {
-          if (response.status === 401 || response.status === 403) {
-            // Authentication error - token might be expired
-            console.error('Authentication error:', response.status);
-            chrome.storage.local.remove('auth0_token', () => {
-              console.log('Expired token removed');
-            });
-            chrome.notifications.create('', {
-              title: 'Authentication Error',
-              message: 'Please log in again to continue using Productivity Nudge',
-              iconUrl: 'icon48.png',
-              type: 'basic'
-            });
-            return;
-          }
-
-          // Handle other API errors
-          const errorData = await response.json().catch(() => ({}));
-          throw new Error(`API error: ${response.status} - ${errorData.error || 'Unknown error'}`);
-        }
-
-        console.log('Response received from backend:', response);
 
         if (!response.ok) {
           console.error('Backend returned an error:', response.status, response.statusText);
@@ -379,67 +332,57 @@ async function captureAndAnalyze() {
         const result = await response.json();
         console.log('Analysis result:', result);
 
-        // Add current analysis to history with timestamp and URL
+        // When adding new analysis
         const currentAnalysis = {
           timestamp: new Date().getTime(),
           url: tab.url,
-          domain: new URL(tab.url).hostname,
+          domain: currentDomain,
           unproductive: result.unproductive,
           productivityScore: result.productivityScore,
           message: result.message
         };
 
-        // Add to beginning of array and maintain max size
-        recentAnalyses.unshift(currentAnalysis);
-        if (recentAnalyses.length > MAX_HISTORY_SIZE) {
-          recentAnalyses.pop();
+        // Update domain's analysis history
+        const domainAnalyses = recentAnalyses.get(currentDomain) || [];
+        domainAnalyses.unshift(currentAnalysis);
+
+        // Maintain max size per domain
+        if (domainAnalyses.length > MAX_HISTORY_SIZE) {
+          domainAnalyses.pop();
         }
 
-        // Update productivity stats
-        chrome.storage.local.get(['productivityStats'], (data) => {
-          const stats = data.productivityStats || { productive: 0, unproductive: 0 };
-          console.log('Current stats:', stats);
+        recentAnalyses.set(currentDomain, domainAnalyses);
 
-          if (result.unproductive) {
-            stats.unproductive++;
-            console.log('Unproductive site detected. Updating stats.');
+        // Save to storage
+        const recentAnalysesByDomain = Object.fromEntries(recentAnalyses);
+        chrome.storage.local.set({ recentAnalysesByDomain });
 
-            // Determine if we should show a notification based on intervention style
-            const shouldNotify = determineIfShouldNotify(tab.url);
+        // Check if should notify
+        if (result.unproductive) {
+          console.log('Unproductive site detected. Checking if should notify...');
+          const shouldNotify = determineIfShouldNotify(tab.url);
+          console.log('Should notify:', shouldNotify);
 
-            if (shouldNotify) {
-              // Send notification
-              sendNotification(
-                'Distracting Site Detected',
-                `You're on a distracting site: ${tab.url}. Would you like to block it?`,
-                [
-                  { title: 'Block' }
-                ]
-              );
-              console.log('Notification sent for unproductive site.');
-            } else {
-              console.log('Unproductive site detected but notification suppressed based on intervention style.');
-            }
+          if (shouldNotify) {
+            sendNotification(
+              'Distracting Site Detected',
+              `You're on a distracting site: ${tab.url}. Would you like to block it?`
+            );
+            console.log('Notification sent for unproductive site.');
           } else {
-            stats.productive++;
-            console.log('Productive site detected. Updating stats.');
+            console.log('Unproductive site detected but notification suppressed based on intervention style.');
           }
-
-          chrome.storage.local.set({ productivityStats: stats });
-
-          // Also save recent analyses to storage
-          chrome.storage.local.set({ recentAnalyses });
-        });
+        } else {
+          console.log('Productive site detected.');
+        }
       } catch (err) {
-        console.error('Error sending screenshot to backend:', err.message);
+        console.error('Error in analysis process:', err);
       }
     });
   } catch (error) {
     console.error('Capture error:', error);
   }
 }
-// Initial capture
-setTimeout(captureAndAnalyze, 5000);
 
 /********************************************************
  * 4) REAL-TIME DOMAIN USAGE TRACKING (1-SECOND INTERVAL)

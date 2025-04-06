@@ -1,10 +1,8 @@
-import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import express from 'express';
 import fetch from 'node-fetch';
 // import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
 
 // Initialize environment variables
 dotenv.config();
@@ -31,7 +29,7 @@ const API_KEY = 'AIzaSyDIJmvCa8bkonKAWrgodywFa4INAWMADwM'; //
  * @returns {string} - A description of how to evaluate productivity
  */
 function getInterventionStyleDescription(style) {
-  switch(style) {
+  switch (style) {
     case 'drill_sergeant':
       return 'very strict productivity evaluation, flag even minor distractions';
     case 'vigilant_mentor':
@@ -53,25 +51,25 @@ function getInterventionStyleDescription(style) {
 app.post('/analyze', async (req, res) => {
   try {
     const { image, url, title, threshold } = req.body;
-    
+
     if (!image) {
       return res.status(400).json({ error: 'No image provided' });
     }
-    
+
     console.log(`Analyzing screenshot from: ${title} (${url})`);
-    
+
     // If API key is not set, return an error
     if (!API_KEY) {
       console.error('No API key found. Set GEMINI_API_KEY in .env file.');
       return res.status(500).json({ error: 'API key not configured' });
     }
-    
+
     // Extract base64 data from data URL
     const base64Data = image.split(',')[1];
-    
+
     // Get task information from request if available
     const { taskContext, hasTasks, interventionStyle } = req.body;
-    
+
     // Prepare request to Gemini API
     const payload = {
       contents: [
@@ -104,16 +102,16 @@ app.post('/analyze', async (req, res) => {
         maxOutputTokens: 100
       }
     };
-    
+
     // Call the Gemini API
     console.log('🌐 Sending request to Gemini API...');
-    
+
     let result;
     try {
       // Make sure API key is appended to URL
       const apiUrl = `${GEMINI_API_URL}?key=${API_KEY}`;
       console.log('Using API URL:', apiUrl.replace(API_KEY, 'REDACTED'));
-      
+
       const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
@@ -121,29 +119,29 @@ app.post('/analyze', async (req, res) => {
         },
         body: JSON.stringify(payload)
       });
-      
+
       console.log(`🔄 Gemini API response status: ${response.status} ${response.statusText}`);
-      
+
       if (!response.ok) {
         // Get error details from response
         const errorText = await response.text();
         console.error('Gemini API Error details:', errorText);
         throw new Error(`Gemini API returned status ${response.status}: ${response.statusText}`);
       }
-      
+
       result = await response.json();
       console.log('✅ Successfully received Gemini API response data');
-      
+
       // Check if we got a proper response structure
       if (!result.candidates || !result.candidates.length) {
         console.error('❌ Unexpected Gemini API response format:', JSON.stringify(result).substring(0, 300));
         throw new Error('Invalid response format from Gemini API');
       }
-      
+
       // Log the API response for debugging
       console.log('✅ Gemini API received and processed screenshot');
       console.log(`🖼️ Screenshot from: ${url} (${title})`);
-      
+
       // Always log partial response for debugging
       if (result.candidates && result.candidates[0] && result.candidates[0].content.parts[0].text) {
         console.log('📊 Gemini response preview:');
@@ -155,19 +153,19 @@ app.post('/analyze', async (req, res) => {
       console.error('❌ Gemini API Error:', apiError.message);
       throw apiError; // Re-throw to be caught by the outer try-catch
     }
-    
+
     // Extract the analysis from the response
     let analysis = {};
     console.log('🔍 Processing Gemini response...');
-    
+
     try {
       if (result.candidates && result.candidates[0].content.parts[0].text) {
         const responseText = result.candidates[0].content.parts[0].text;
         console.log('Raw Gemini response:', responseText.substring(0, 300) + '...');
-        
+
         // Try to extract JSON from the response
         const jsonMatch = responseText.match(/\{[\s\S]*?\}/);
-        
+
         if (jsonMatch) {
           try {
             analysis = JSON.parse(jsonMatch[0]);
@@ -177,7 +175,7 @@ app.post('/analyze', async (req, res) => {
             // Fallback to regex extraction
             const scoreMatch = responseText.match(/productivityScore"?\s*:\s*(\d+)/);
             const messageMatch = responseText.match(/message"?\s*:\s*"([^"]*)"/);
-            
+
             analysis = {
               productivityScore: scoreMatch ? parseInt(scoreMatch[1]) : 50,
               message: messageMatch ? messageMatch[1] : 'Consider refocusing on your tasks.'
@@ -188,26 +186,26 @@ app.post('/analyze', async (req, res) => {
           // Direct score extraction without JSON
           console.log('No JSON found, trying manual extraction');
           // Try different regex patterns
-          let scoreMatch = responseText.match(/productivityScore"?\s*:\s*(\d+)/) || 
-                         responseText.match(/productivity\s*score\s*[=:]\s*(\d+)/i) ||
-                         responseText.match(/\b(\d{1,2}|100)\s*\/\s*100\b/) ||
-                         responseText.match(/\bscore\s*:\s*(\d+)\b/i);
-          
+          let scoreMatch = responseText.match(/productivityScore"?\s*:\s*(\d+)/) ||
+            responseText.match(/productivity\s*score\s*[=:]\s*(\d+)/i) ||
+            responseText.match(/\b(\d{1,2}|100)\s*\/\s*100\b/) ||
+            responseText.match(/\bscore\s*:\s*(\d+)\b/i);
+
           let messageMatch = responseText.match(/message"?\s*:\s*"([^"]*)"/) ||
-                           responseText.match(/message[:\.]\s*(.+?)(?:\.|\n)/);
-          
+            responseText.match(/message[:\.]\s*(.+?)(?:\.|\n)/);
+
           // If no clear score found, estimate from text sentiment
           let score = 50; // Default score
           if (scoreMatch && scoreMatch[1]) {
             score = parseInt(scoreMatch[1]);
-          } else if (responseText.toLowerCase().includes('unproductive') || 
-                    responseText.toLowerCase().includes('distract')) {
+          } else if (responseText.toLowerCase().includes('unproductive') ||
+            responseText.toLowerCase().includes('distract')) {
             score = 30; // Likely unproductive
           } else if (responseText.toLowerCase().includes('productive') ||
-                    responseText.toLowerCase().includes('work')) {
+            responseText.toLowerCase().includes('work')) {
             score = 70; // Likely productive
           }
-          
+
           analysis = {
             productivityScore: score,
             message: messageMatch ? messageMatch[1] : 'Consider checking your focus.'
@@ -223,24 +221,24 @@ app.post('/analyze', async (req, res) => {
         message: 'Consider checking your current focus and priorities.'
       };
     }
-    
+
     // Set a default productivity score if undefined
     if (analysis.productivityScore === undefined) {
       console.warn('Productivity score was undefined, using default of 50');
       analysis.productivityScore = 50;
     }
-    
+
     // Make sure the score is a number between 0-100
     analysis.productivityScore = Math.max(-1, Math.min(100, parseInt(analysis.productivityScore) || 50));
-    
+
     // Determine if the behavior is unproductive based on threshold
     const unproductive = analysis.productivityScore < threshold;
-    
+
     console.log(`📋 Analysis complete - Score: ${analysis.productivityScore}, Unproductive: ${unproductive}`);
     if (unproductive) {
       console.log(`📝 Feedback: "${analysis.message || 'Consider refocusing'}"`);
     }
-    
+
     // Return the result to the extension with a confirmation flag
     return res.json({
       unproductive,
@@ -252,8 +250,8 @@ app.post('/analyze', async (req, res) => {
   } catch (error) {
     console.error('❌ Error analyzing image:', error.message);
     console.error('Error details:', error.stack || error);
-    res.status(500).json({ 
-      error: 'Internal server error', 
+    res.status(500).json({
+      error: 'Internal server error',
       message: error.message,
       timestamp: new Date().toISOString()
     });

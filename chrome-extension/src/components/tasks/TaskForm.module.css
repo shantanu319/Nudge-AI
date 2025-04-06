@@ -1,52 +1,86 @@
 @import "../../styles/colors.css";
 
-.container {
+.form {
+  margin-bottom: 1.5rem;
+}
+
+.inputGroup {
   display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-bottom: 16px;
+  gap: 0.5rem;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border-light);
+  border-radius: 8px;
+  padding: 0.5rem;
+  transition: all 0.2s;
+}
+
+.inputGroup:focus-within {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px var(--color-primary-light);
 }
 
 .input {
-  padding: 8px 12px;
-  border: 1px solid var(--color-border-light);
-  border-radius: 6px;
-  background: var(--color-bg-secondary);
+  flex: 1;
+  border: none;
+  background: none;
+  padding: 0.5rem;
   color: var(--color-text-primary);
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 
 .input:focus {
   outline: none;
-  border-color: var(--color-primary);
 }
 
-.prioritySelect {
-  padding: 8px 12px;
-  border: 1px solid var(--color-border-light);
-  border-radius: 6px;
-  background: var(--color-bg-secondary);
-  color: var(--color-text-primary);
-  font-size: 14px;
+.input::placeholder {
+  color: var(--color-text-secondary);
 }
 
-.prioritySelect:focus {
-  outline: none;
-  border-color: var(--color-primary);
+.priorityGroup {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
 }
 
-.submitButton {
-  padding: 8px 16px;
-  background: var(--color-primary);
-  color: white;
+.select {
   border: none;
-  border-radius: 6px;
-  font-weight: 500;
+  background: none;
+  color: var(--color-text-primary);
+  font-size: 0.875rem;
+  padding: 0.5rem;
   cursor: pointer;
-  transition: all 0.2s ease;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%235f634f' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.5rem center;
+  padding-right: 2rem;
 }
 
-.submitButton:hover {
+.select:focus {
+  outline: none;
+}
+
+.button {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  color: var(--color-primary);
+}
+
+.button:hover {
   background: var(--color-hover);
-  transform: translateY(-1px);
+}
+
+.button svg {
+  width: 20px;
+  height: 20px;
+  stroke-width: 2;
 }

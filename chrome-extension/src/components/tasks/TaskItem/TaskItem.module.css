@@ -1,99 +1,132 @@
-.taskContainer {
+@import "../../../styles/colors.css";
+
+.taskItem {
   display: flex;
   align-items: center;
-  margin-bottom: 1rem;
-  border: 1px solid var(--color-border-light);
-  border-radius: 0.5rem;
-  padding: 1rem;
-  background-color: var(--color-bg-secondary);
-  transition: all 0.2s ease;
+  justify-content: space-between;
+  padding: 0.75rem;
+  background: var(--color-bg-secondary);
+  border-radius: 8px;
+  margin-bottom: 0.5rem;
+  transition: all 0.2s;
 }
 
-.taskContainer:hover {
+.taskItem:hover {
   background: var(--color-hover);
-  transform: translateY(-1px);
-}
-
-.taskContainer.focused {
-  background-color: var(--color-bg-primary);
-  border-color: var(--color-primary);
 }
 
 .taskContent {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
   flex: 1;
-  margin-left: 1rem;
-}
-
-.taskTitle {
-  margin: 0 0 0.25rem 0;
-  color: var(--color-text-primary);
-  font-size: 1rem;
-}
-
-.taskDescription {
-  color: var(--color-text-secondary);
-  font-size: 0.875rem;
-  margin: 0;
 }
 
 .checkbox {
-  width: 1.25rem;
-  height: 1.25rem;
-  border: 2px solid var(--color-primary);
-  border-radius: 0.25rem;
-  background-color: var(--color-bg-secondary);
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  background: none;
+  border: none;
   cursor: pointer;
-  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-secondary);
+  transition: all 0.2s;
 }
 
-.checkbox:checked {
-  background-color: var(--color-primary);
-  border-color: var(--color-primary);
+.checkbox:hover {
+  color: var(--color-primary);
 }
 
-.checkbox:focus {
+.taskText {
+  color: var(--color-text-primary);
+  font-size: 0.875rem;
+  flex: 1;
+}
+
+.completed {
+  text-decoration: line-through;
+  color: var(--color-text-secondary);
+}
+
+.editForm {
+  display: flex;
+  gap: 0.5rem;
+  flex: 1;
+}
+
+.editInput {
+  flex: 1;
+  border: none;
+  background: none;
+  color: var(--color-text-primary);
+  font-size: 0.875rem;
+  padding: 0.25rem;
+}
+
+.editInput:focus {
   outline: none;
-  box-shadow: 0 0 0 2px var(--color-primary-light);
+}
+
+.prioritySelect {
+  border: none;
+  background: none;
+  color: var(--color-text-primary);
+  font-size: 0.875rem;
+  padding: 0.25rem;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%235f634f' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.25rem center;
+  padding-right: 1.5rem;
+}
+
+.prioritySelect:focus {
+  outline: none;
+}
+
+.saveButton {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.saveButton:hover {
+  background: var(--color-hover);
+}
+
+.taskActions {
+  display: flex;
+  gap: 0.5rem;
 }
 
 .actionButton {
-  padding: 0.5rem 1rem;
-  color: var(--color-text-light);
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  background: none;
   border: none;
-  border-radius: 0.375rem;
+  border-radius: 50%;
   cursor: pointer;
-  background-color: var(--color-primary);
-  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  color: var(--color-text-secondary);
 }
 
 .actionButton:hover {
   background: var(--color-hover);
-}
-
-.actionButton.focused {
-  background-color: var(--color-primary-dark);
-}
-
-.deleteButton {
-  composes: actionButton;
-  background-color: var(--color-error);
-}
-
-.deleteButton:hover {
-  background: var(--color-hover);
-}
-
-.editButton {
-  composes: actionButton;
-  background-color: var(--color-secondary);
-}
-
-.editButton:hover {
-  background: var(--color-hover);
-}
-
-.completed {
-  opacity: 0.7;
-  text-decoration: line-through;
-  color: var(--color-text-secondary);
+  color: var(--color-primary);
 }

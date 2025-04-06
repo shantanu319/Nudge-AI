@@ -1,3 +1,4 @@
+import * as feather from 'feather-icons';
 import React, { useState } from 'react';
 import styles from './TaskForm.module.css';
 
@@ -14,28 +15,31 @@ export default function TaskForm({ onSubmit }) {
 
     return (
         <form onSubmit={handleSubmit} className={styles.form}>
-            <input
-                type="text"
-                value={newTask}
-                onChange={(e) => setNewTask(e.target.value)}
-                placeholder="Task Title"
-                className={styles.input}
-            />
-            <select
-                value={newPriority}
-                onChange={(e) => setNewPriority(e.target.value)}
-                className={styles.select}
-            >
-                <option value="High">High</option>
-                <option value="Medium">Medium</option>
-                <option value="Low">Low</option>
-            </select>
-            <button
-                type="submit"
-                className={styles.button}
-            >
-                Add Task
-            </button>
+            <div className={styles.inputGroup}>
+                <input
+                    type="text"
+                    value={newTask}
+                    onChange={(e) => setNewTask(e.target.value)}
+                    placeholder="What needs to get done?"
+                    className={styles.input}
+                />
+                <div className={styles.priorityGroup}>
+                    <select
+                        value={newPriority}
+                        onChange={(e) => setNewPriority(e.target.value)}
+                        className={styles.select}
+                    >
+                        <option value="High">High</option>
+                        <option value="Medium">Medium</option>
+                        <option value="Low">Low</option>
+                    </select>
+                    <button
+                        type="submit"
+                        className={styles.button}
+                        dangerouslySetInnerHTML={{ __html: feather.icons.plus.toSvg() }}
+                    />
+                </div>
+            </div>
         </form>
     );
 } 

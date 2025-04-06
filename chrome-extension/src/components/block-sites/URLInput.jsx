@@ -1,3 +1,4 @@
+import * as feather from 'feather-icons';
 import React, { useState } from 'react';
 import styles from './URLInput.module.css';
 
@@ -24,9 +25,7 @@ export default function URLInput({ onSubmit }) {
                     placeholder="Enter domain (e.g. facebook.com)"
                     className={styles.input}
                 />
-                <button type="submit" className={styles.button}>
-                    Add
-                </button>
+                <button type="submit" className={styles.button} dangerouslySetInnerHTML={{ __html: feather.icons.plus.toSvg() }} />
             </form>
         </div>
     );

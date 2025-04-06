@@ -88,7 +88,7 @@
 }
 
 .settingsButton:hover {
-  color: var(--color-primary);
+  background: var(--color-hover);
 }
 
 .settingsButton svg {

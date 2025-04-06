@@ -10,8 +10,8 @@
 }
 
 .taskContainer:hover {
+  background: var(--color-hover);
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .taskContainer.focused {
@@ -67,7 +67,7 @@
 }
 
 .actionButton:hover {
-  background-color: var(--color-primary-dark);
+  background: var(--color-hover);
 }
 
 .actionButton.focused {
@@ -80,7 +80,7 @@
 }
 
 .deleteButton:hover {
-  background-color: var(--color-error);
+  background: var(--color-hover);
 }
 
 .editButton {
@@ -89,7 +89,7 @@
 }
 
 .editButton:hover {
-  background-color: var(--color-secondary);
+  background: var(--color-hover);
 }
 
 .completed {

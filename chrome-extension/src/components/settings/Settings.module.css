@@ -1,35 +1,84 @@
-.container {
-  margin-bottom: 1.25rem;
+.fullContainer {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  background: var(--color-bg-primary);
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  border-bottom: 1px solid var(--color-border-light);
 }
 
 .title {
   color: var(--color-text-primary);
-  font-size: 1.125rem;
-  margin-bottom: 1rem;
-  font-weight: 500;
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.closeButton {
+  background: none;
+  border: none;
+  color: var(--color-text-primary);
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0.25rem;
+  line-height: 1;
+  border-radius: 50%;
+  width: 2rem;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s;
+}
+
+.closeButton:hover {
+  background-color: var(--color-bg-secondary);
+}
+
+.content {
+  flex: 1;
+  padding: 1rem;
+  overflow-y: auto;
+}
+
+.container {
+  margin-bottom: 1.25rem;
 }
 
 .settingRow {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 10px;
+  flex-direction: column;
+  margin-bottom: 1.5rem;
 }
 
 .label {
   color: var(--color-text-primary);
   margin-bottom: 0.5rem;
   font-size: 0.875rem;
+  font-weight: 500;
 }
 
 .select {
   width: 100%;
-  padding: 8px;
-  border-radius: 4px;
+  padding: 0.75rem;
+  border-radius: 6px;
   background: var(--color-bg-secondary);
   border: 1px solid var(--color-border-light);
   color: var(--color-text-primary);
   font-size: 0.875rem;
+  transition: border-color 0.2s;
+}
+
+.select:focus {
+  outline: none;
+  border-color: var(--color-primary);
 }
 
 .sliderContainer {
@@ -70,14 +119,15 @@
 
 .saveButton {
   width: 100%;
-  padding: 8px 16px;
+  padding: 0.75rem;
   background-color: var(--color-primary);
   color: var(--color-text-light);
   border: none;
-  border-radius: 4px;
+  border-radius: 6px;
   cursor: pointer;
   font-weight: 500;
   transition: background-color 0.2s;
+  margin-top: auto;
 }
 
 .saveButton:hover {

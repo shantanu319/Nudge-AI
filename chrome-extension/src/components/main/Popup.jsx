@@ -1,4 +1,4 @@
-import feather from 'feather-icons';
+import * as feather from 'feather-icons';
 import React, { useEffect, useState } from 'react';
 import { usePopup } from '../../hooks/usePopup';
 import ActivitySummary from '../activity/ActivitySummary';
@@ -26,6 +26,11 @@ export default function Popup() {
         feather.replace();
     }, [activeTab, showSettings]);
 
+    const getIcon = (name) => {
+        const icon = feather.icons[name];
+        return icon ? icon.toSvg() : '';
+    };
+
     return (
         <div className={styles.container}>
             <div className={styles.card}>
@@ -45,7 +50,7 @@ export default function Popup() {
                     <button
                         className={styles.settingsButton}
                         onClick={() => setShowSettings(!showSettings)}
-                        dangerouslySetInnerHTML={{ __html: feather.icons.settings.toSvg() }}
+                        dangerouslySetInnerHTML={{ __html: getIcon('settings') }}
                     />
                 </div>
 
@@ -64,21 +69,21 @@ export default function Popup() {
                                 className={`${styles.tab} ${activeTab === 'tasks' ? styles.active : ''}`}
                                 onClick={() => setActiveTab('tasks')}
                             >
-                                <span dangerouslySetInnerHTML={{ __html: feather.icons.check.toSvg() }} />
+                                <span dangerouslySetInnerHTML={{ __html: getIcon('check') }} />
                                 <span>Tasks</span>
                             </button>
                             <button
                                 className={`${styles.tab} ${activeTab === 'focus' ? styles.active : ''}`}
                                 onClick={() => setActiveTab('focus')}
                             >
-                                <span dangerouslySetInnerHTML={{ __html: feather.icons.lock.toSvg() }} />
+                                <span dangerouslySetInnerHTML={{ __html: getIcon('lock') }} />
                                 <span>Focus</span>
                             </button>
                             <button
                                 className={`${styles.tab} ${activeTab === 'analytics' ? styles.active : ''}`}
                                 onClick={() => setActiveTab('analytics')}
                             >
-                                <span dangerouslySetInnerHTML={{ __html: feather.icons.barChart2.toSvg() }} />
+                                <span dangerouslySetInnerHTML={{ __html: getIcon('bar-chart-2') }} />
                                 <span>Analytics</span>
                             </button>
                         </div>

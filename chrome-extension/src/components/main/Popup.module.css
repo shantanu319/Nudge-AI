@@ -47,14 +47,18 @@
 }
 
 .toggleButton {
-  padding: 4px 8px;
+  width: 24px;
+  height: 24px;
+  padding: 4px;
   border: none;
-  border-radius: 4px;
+  border-radius: 50%;
   background: var(--color-bg-tertiary);
   color: var(--color-text-primary);
-  font-size: 12px;
   cursor: pointer;
   transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .toggleButton:hover {
@@ -64,6 +68,12 @@
 .toggleButton.active {
   background: var(--color-primary);
   color: white;
+}
+
+.toggleButton svg {
+  width: 16px;
+  height: 16px;
+  stroke-width: 2;
 }
 
 .settingsButton {

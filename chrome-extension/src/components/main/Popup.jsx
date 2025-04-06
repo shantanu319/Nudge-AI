@@ -42,9 +42,8 @@ export default function Popup() {
                             <button
                                 className={`${styles.toggleButton} ${isActive ? styles.active : ''}`}
                                 onClick={toggleActive}
-                            >
-                                {isActive ? 'Pause' : 'Resume'}
-                            </button>
+                                dangerouslySetInnerHTML={{ __html: isActive ? getIcon('pause') : getIcon('play') }}
+                            />
                         </div>
                     </div>
                     <button

@@ -45,8 +45,8 @@
 
 .statValue {
   font-size: 16px;
-  font-weight: 600;
-  color: var(--color-text-primary);
+  font-weight: bold;
+  color: red;
   text-align: center;
 }
 

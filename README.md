@@ -1,6 +1,7 @@
 # Productivity Nudge Chrome Extension
 
-A Chrome extension that periodically takes screenshots, processes them with the Google Gemini API, and nudges you when it detects unproductive behavior.
+A Chrome extension that periodically takes screenshots, processes them with the Google Gemini, then uses notifications and dynamic website blocking to keep you on task.
+Devpost: https://devpost.com/software/nudge-ai?ref_content=my-projects-tab&ref_feature=my_projects
 
 ## Project Structure
 

@@ -48,6 +48,5 @@
     "http://localhost:3000/*",
     "http://localhost:3001/*",
     "<all_urls>"
-  ],
-  "_note": "OAuth2 config removed until app is approved for Chrome Web Store"
+  ]
 }

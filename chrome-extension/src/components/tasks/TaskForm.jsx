@@ -1,4 +1,4 @@
-import * as feather from 'feather-icons';
+import Icon from '../icons/Icon';
 import React, { useState } from 'react';
 import styles from './TaskForm.module.css';
 
@@ -38,8 +38,9 @@ export default function TaskForm({ onSubmit }) {
                     <button
                         type="submit"
                         className={styles.button}
-                        dangerouslySetInnerHTML={{ __html: feather.icons.plus.toSvg() }}
-                    />
+                    >
+                        <Icon name="plus" />
+                    </button>
                 </div>
             </div>
         </form>

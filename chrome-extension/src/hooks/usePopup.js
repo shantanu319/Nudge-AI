@@ -8,7 +8,8 @@ export function usePopup() {
         threshold: 50,
         interventionStyle: 'drill_sergeant',
         useGemini: true,
-        geminiApiKey: ''
+        geminiApiKey: '',
+        testMode: false
     });
     const [isActive, setIsActive] = useState(true);
 

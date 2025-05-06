@@ -18,7 +18,6 @@ try {
   process.exit(1);
 }
 
-// Copy manifest.json to build directory
 console.log('Copying manifest.json...');
 fs.copyFileSync(
   path.join(__dirname, 'manifest.json'),
@@ -63,31 +62,6 @@ if (fs.existsSync(srcAssetsDir)) {
       path.join(buildAssetsDir, file)
     );
   });
-}
-
-let productivityStats = {
-  productive: 0,
-  unproductive: 0
-};
-
-function updateAnalytics(url, domain, isProductive, timeSpent) {
-  // Update productivity stats
-  if (isProductive !== undefined) {
-    productivityStats[isProductive ? 'productive' : 'unproductive']++;
-    chrome.storage.local.set({ productivityStats });
-  }
-
-  // Update domain usage
-  const domainUsage = {};
-  for (const [trackedDomain, tracking] of siteTracking.entries()) {
-    domainUsage[trackedDomain] = {
-      totalTime: tracking.totalTime,
-      category: tracking.category,
-      lastVisit: tracking.lastUpdate,
-      url: tracking.url
-    };
-  }
-  chrome.storage.local.set({ timeSpent: domainUsage });
 }
 
 console.log('Build completed successfully!');

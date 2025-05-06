@@ -15,7 +15,6 @@ export default function Block() {
         <div className={styles.container}>
             <div className={styles.header}>
                 <h2>Blocked Websites</h2>
-                <p>Add websites you want to block to stay focused</p>
             </div>
             <URLInput onSubmit={addUrl} />
             <BlockList blockList={blockList} onRemoveUrl={removeUrl} />

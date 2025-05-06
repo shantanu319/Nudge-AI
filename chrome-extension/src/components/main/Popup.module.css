@@ -1,17 +1,32 @@
 @import "../../styles/colors.css";
 
 .container {
-  width: 400px;
-  height: 500px;
-  background: var(--color-bg-primary);
+  width: 800px;
+  height: 600px;
+  background: linear-gradient(135deg, #4f46e5 0%, #ec4899 100%);
   color: var(--color-text-primary);
+  position: relative;
+  /* Increased padding to prevent edge cutoff */
+  padding: 20px;
+  box-sizing: border-box;
+  /* Make sure container fits everything */
+  min-width: 480px;
 }
 
-.card {
+.glassCard {
   background: var(--color-bg-secondary);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border-radius: 16px;
+  border: var(--glass-border);
+  box-shadow: var(--glass-shadow);
   height: 100%;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+  /* Ensure the card doesn't exceed container */
+  max-width: 100%;
+  max-height: 100%;
 }
 
 .header {
@@ -20,8 +35,9 @@
   align-items: center;
   padding: 20px 24px;
   border-bottom: 1px solid var(--color-border-light);
-  background: var(--color-bg-secondary);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
 }
 
 .titleContainer {
@@ -35,10 +51,11 @@
   font-size: 32px;
   font-weight: 800;
   margin: 0;
-  color: var(--color-primary);
+  color: var(--color-text-light);
   letter-spacing: -1px;
   position: relative;
   display: inline-block;
+  text-shadow: 0 1px 2px rgba(15, 23, 42, 0.2);
 }
 
 .statusContainer {
@@ -50,20 +67,22 @@
 
 .status {
   font-size: 11px;
-  color: var(--color-primary);
+  color: var(--color-text-light);
   font-weight: 500;
   padding: 2px 6px;
-  background: var(--color-bg-tertiary);
+  background: rgba(79, 70, 229, 0.2);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
   border-radius: 4px;
-  border: 1px solid var(--color-primary-light);
-  box-shadow: 0 1px 2px rgba(79, 70, 229, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 2px 4px rgba(15, 23, 42, 0.1);
   letter-spacing: 0.5px;
 }
 
 .status.inactive {
-  color: var(--color-text-secondary);
-  background: var(--color-bg-tertiary);
-  border: 1px solid var(--color-border-light);
+  color: var(--color-text-light);
+  background: rgba(148, 163, 184, 0.2);
+  border: 1px solid rgba(226, 232, 240, 0.3);
   box-shadow: none;
 }
 
@@ -74,91 +93,89 @@
   margin-left: auto;
 }
 
-.toggleButton {
-  width: 32px;
-  height: 32px;
-  padding: 6px;
-  border: none;
-  border-radius: 8px;
-  background: var(--color-bg-tertiary);
-  color: var(--color-text-primary);
+.glassButton {
+  width: 36px;
+  height: 36px;
+  padding: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  color: var(--color-text-light);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.3s ease;
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: 0 4px 6px rgba(15, 23, 42, 0.1);
 }
 
-.toggleButton:hover {
-  background: var(--color-hover);
+.glassButton:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(15, 23, 42, 0.15);
 }
 
-.toggleButton.active {
-  background: var(--color-primary);
-  color: white;
+.glassButton.active {
+  background: rgba(79, 70, 229, 0.4);
+  border-color: rgba(99, 102, 241, 0.4);
+  box-shadow: 0 0 15px rgba(79, 70, 229, 0.5);
 }
 
-.toggleButton svg {
+.glassButton svg {
   width: 16px;
   height: 16px;
   stroke-width: 2;
 }
 
-.settingsButton {
-  width: 32px;
-  height: 32px;
-  padding: 6px;
-  border: none;
-  border-radius: 8px;
-  background: var(--color-bg-tertiary);
-  color: var(--color-text-primary);
-  cursor: pointer;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.settingsButton:hover {
-  background: var(--color-hover);
-}
-
-.settingsButton svg {
-  width: 16px;
-  height: 16px;
-  stroke-width: 2;
-}
-
-.tabs {
+.glassTabs {
   display: flex;
   border-bottom: 1px solid var(--color-border-light);
+  padding: 0 8px;
+  background: rgba(255, 255, 255, 0.05);
 }
 
-.tab {
+.glassTab {
   flex: 1;
   padding: 12px;
   border: none;
-  background: none;
-  color: var(--color-text-secondary);
+  background: transparent;
+  color: var(--color-text-light);
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.3s ease;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
+  position: relative;
+  overflow: hidden;
 }
 
-.tab:hover {
-  background: var(--color-hover);
+.glassTab:after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: 0;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.5);
+  transition: all 0.3s ease;
+  transform: translateX(-50%);
 }
 
-.tab.active {
-  color: var(--color-primary);
-  border-bottom: 2px solid var(--color-primary);
+.glassTab:hover:after {
+  width: 60%;
 }
 
-.tab svg {
+.glassTab.active:after {
+  width: 80%;
+  background: var(--color-primary-light);
+  box-shadow: 0 0 8px var(--color-primary);
+}
+
+.glassTab svg {
   width: 16px;
   height: 16px;
   stroke-width: 2;
@@ -170,12 +187,104 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(226, 232, 240, 0.3) transparent;
+  /* Ensure content doesn't overflow */
+  box-sizing: border-box;
+  width: 100%;
 }
 
-.section {
-  margin: 0;
+.content::-webkit-scrollbar {
+  width: 4px;
 }
 
-.section:last-child {
-  margin: 0;
+.content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.content::-webkit-scrollbar-thumb {
+  background-color: rgba(226, 232, 240, 0.3);
+  border-radius: 20px;
+}
+
+.glassSection {
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 6px rgba(15, 23, 42, 0.05);
+  transition: all 0.3s ease;
+  /* Make sure sections don't overflow */
+  max-width: 100%;
+  box-sizing: border-box;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  margin-bottom: 0;
+}
+
+.glassSection:hover {
+  box-shadow: 0 8px 16px rgba(15, 23, 42, 0.1);
+  transform: translateY(-2px);
+}
+
+.glassSection:last-child {
+  margin-bottom: 0;
+}
+
+/* Task input area specific styles */
+.taskInput {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  /* Ensure input doesn't overflow */
+  width: auto;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.taskInput input {
+  background: transparent;
+  border: none;
+  color: var(--color-text-light);
+  flex: 1;
+  font-size: 14px;
+  padding: 6px 0;
+}
+
+.taskInput input::placeholder {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.taskInput input:focus {
+  outline: none;
+}
+
+/* Media query to ensure proper display on smaller screens */
+@media (max-width: 420px) {
+  .container {
+    width: 100%;
+    padding: 12px;
+    min-width: 320px;
+  }
+  
+  .title {
+    font-size: 28px;
+  }
+  
+  .header {
+    padding: 16px 20px;
+  }
+  
+  .content {
+    padding: 12px;
+  }
 }

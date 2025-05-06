@@ -1,4 +1,4 @@
-import { feather } from 'feather-icons';
+import Icon from '../../icons/Icon';
 import React, { useState } from 'react';
 import { getPriorityColor } from '../../../utils/priorityColors';
 import styles from './TaskItem.module.css';
@@ -21,14 +21,15 @@ const TaskItem = ({ task, onToggle, onDelete, onEdit }) => {
                 <button
                     className={styles.checkbox}
                     onClick={() => onToggle(task.id)}
-                    dangerouslySetInnerHTML={{
-                        __html: feather.icons[task.completed ? "check-square" : "square"].toSvg({
-                            width: 20,
-                            height: 20,
-                            stroke: task.completed ? "var(--color-primary)" : "var(--color-text-secondary)",
-                        }),
-                    }}
-                />
+                >
+                    <Icon 
+                        name={task.completed ? "check-square" : "square"}
+                        size={20}
+                        style={{
+                            stroke: task.completed ? "var(--color-primary)" : "var(--color-text-secondary)"
+                        }}
+                    />
+                </button>
                 {isEditing ? (
                     <div className={styles.editForm}>
                         <input
@@ -50,14 +51,13 @@ const TaskItem = ({ task, onToggle, onDelete, onEdit }) => {
                         <button
                             className={styles.saveButton}
                             onClick={handleEdit}
-                            dangerouslySetInnerHTML={{
-                                __html: feather.icons.check.toSvg({
-                                    width: 16,
-                                    height: 16,
-                                    stroke: "var(--color-primary)",
-                                }),
-                            }}
-                        />
+                        >
+                            <Icon 
+                                name="check"
+                                size={16}
+                                style={{ stroke: "var(--color-primary)" }}
+                            />
+                        </button>
                     </div>
                 ) : (
                     <span className={`${styles.taskText} ${task.completed ? styles.completed : ""}`}>
@@ -71,25 +71,23 @@ const TaskItem = ({ task, onToggle, onDelete, onEdit }) => {
                         <button
                             className={styles.actionButton}
                             onClick={() => setIsEditing(true)}
-                            dangerouslySetInnerHTML={{
-                                __html: feather.icons.edit.toSvg({
-                                    width: 16,
-                                    height: 16,
-                                    stroke: "var(--color-text-secondary)",
-                                }),
-                            }}
-                        />
+                        >
+                            <Icon 
+                                name="edit"
+                                size={16}
+                                style={{ stroke: "var(--color-text-secondary)" }}
+                            />
+                        </button>
                         <button
                             className={styles.actionButton}
                             onClick={() => onDelete(task.id)}
-                            dangerouslySetInnerHTML={{
-                                __html: feather.icons.trash.toSvg({
-                                    width: 16,
-                                    height: 16,
-                                    stroke: "var(--color-text-secondary)",
-                                }),
-                            }}
-                        />
+                        >
+                            <Icon 
+                                name="trash"
+                                size={16}
+                                style={{ stroke: "var(--color-text-secondary)" }}
+                            />
+                        </button>
                     </>
                 )}
             </div>

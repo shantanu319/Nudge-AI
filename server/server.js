@@ -29,7 +29,10 @@ if (!API_KEY) {
   process.exit(1);
 }
 
-console.log('✅ API Key configured successfully');
+// Setup response cache to avoid repeated API calls for similar screenshots
+const responseCache = new Map();
+const CACHE_EXPIRY = 5 * 60 * 1000; // 5 minutes in milliseconds
+const CACHE_MAX_SIZE = 20; // Maximum number of cached responses
 
 /**
  * Returns a description of the intervention style for the Gemini prompt
@@ -54,11 +57,29 @@ function getInterventionStyleDescription(style) {
 }
 
 
+// Clean up expired cache entries periodically
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, entry] of responseCache.entries()) {
+    if (now - entry.timestamp > CACHE_EXPIRY) {
+      responseCache.delete(key);
+    }
+  }
+}, 60000); // Check every minute
 
 // Endpoint to receive screenshot data
 app.post('/analyze', async (req, res) => {
   try {
     const { image, url, title, threshold } = req.body;
+    
+    // Generate a cache key based on URL and a time window (every 3 minutes)
+    const timeWindow = Math.floor(Date.now() / (3 * 60 * 1000));
+    const cacheKey = `${url}-${timeWindow}`;
+    
+    // Check cache first
+    if (responseCache.has(cacheKey)) {
+      return res.json(responseCache.get(cacheKey).data);
+    }
 
     if (!image) {
       return res.status(400).json({ error: 'No image provided' });
@@ -94,26 +115,21 @@ app.post('/analyze', async (req, res) => {
     }
 
     // Get task information from request if available
-    const { 
-      taskContext, 
-      hasTasks, 
-      interventionStyle, 
-      isEntertainment, 
-      timeSpent, 
-      timeOfDay, 
-      lastNotificationTime, 
-      previousDismissals, 
-      batteryStatus, 
-      siteCategory, 
+    const {
+      taskContext,
+      hasTasks,
+      interventionStyle,
+      isEntertainment,
+      timeSpent,
+      timeOfDay,
+      lastNotificationTime,
+      previousDismissals,
+      siteCategory,
       timeSinceFirstSeen
-      // Calendar integration disabled until Chrome Web Store approval
-      // calendarStatus,
-      // currentEvent,
-      // nextEvent
     } = req.body;
 
     // Don't notify if we just started tracking
-    if (timeSinceFirstSeen < 1) { // Less than 1 minute
+    if (timeSinceFirstSeen < 0.1) { // Less than 1 minute
       console.log('Site recently opened, skipping notification');
       return res.json({
         productivityScore: 50,
@@ -144,77 +160,14 @@ Site Info:
 Context:
 - Time of day: ${timeOfDay || new Date().toLocaleTimeString()}
 - Last notification: ${lastNotificationTime ? `${Math.floor((Date.now() - lastNotificationTime) / 60000)} minutes ago` : 'never'}
-- Battery status: ${batteryStatus || 'unknown'}
 ${hasTasks ? `- Active tasks:\n${taskContext}\n` : '- No active tasks'}
 - Focus style: ${interventionStyle ? `${interventionStyle.replace('_', ' ')} (${getInterventionStyleDescription(interventionStyle)})` : 'default'}
-/* Calendar integration disabled until Chrome Web Store approval
-- Calendar status: ${calendarStatus || 'FREE'}
-${currentEvent ? `- Current calendar event: ${currentEvent}` : ''}
-${nextEvent ? `- Next calendar event: ${nextEvent}` : ''}
-*/
-
-Time Limits by Style and Category (standard | off-peak):
-
-Drill Sergeant (Strict):
-- Streaming: 30min | 45min
-- Gaming: 10min | 15min
-- Social Media: 15min | 20min
-- News/Forums: 15min | 20min
-- Shopping: 10min | 15min
-
-Vigilant Mentor (Firm):
-- Streaming: 45min | 60min
-- Gaming: 15min | 25min
-- Social Media: 20min | 30min
-- News/Forums: 25min | 35min
-- Shopping: 15min | 25min
-
-Steady Coach (Balanced):
-- Streaming: 60min | 90min
-- Gaming: 20min | 30min
-- Social Media: 30min | 45min
-- News/Forums: 30min | 45min
-- Shopping: 20min | 30min
-
-Patient Guide (Lenient):
-- Streaming: 90min | 120min
-- Gaming: 30min | 45min
-- Social Media: 45min | 60min
-- News/Forums: 45min | 60min
-- Shopping: 30min | 45min
-
-Zen Observer (Very Lenient):
-- Streaming: 120min | 180min
-- Gaming: 45min | 60min
-- Social Media: 60min | 90min
-- News/Forums: 60min | 90min
-- Shopping: 45min | 60min
-
-Context Modifiers:
-- Work hours (9am-5pm): -30% time
-- Off hours (after 8pm): +20% time
-- Weekend: +50% time
-- Charging: +20% time
-- Previous dismissals: +10min per dismiss
-- Active tasks: -20% time if unrelated to tasks
-/* Calendar integration disabled until Chrome Web Store approval
-- In meeting/focus time: +100% time (be more lenient during scheduled meetings)
-- Minutes before next meeting: -30% time if <15 minutes before a meeting
-*/
 
 Important Rules:
 1. DO NOT send notifications if time_spent is 0 or if site was just opened
-/* Calendar integration disabled until Chrome Web Store approval
 2. DO NOT send notifications during meetings unless it's a very long entertainment session
 3. Be more lenient right before scheduled meetings (within 15 minutes)
-*/
-2. Minimum time between notifications:
-   - Drill Sergeant: 10 minutes
-   - Vigilant Mentor: 15 minutes
-   - Steady Coach: 20 minutes
-   - Patient Guide: 30 minutes
-   - Zen Observer: 45 minutes
-3. Message tone should match the intervention style:
+4. Message tone should match the intervention style:
    - Drill Sergeant: Direct and urgent
    - Vigilant Mentor: Firm but supportive
    - Steady Coach: Balanced and encouraging
@@ -244,31 +197,15 @@ Return ONLY a JSON object:
         ]
       }],
       generationConfig: {
-        temperature: 0.4,
-        maxOutputTokens: 150
+        temperature: 0.2,
+        maxOutputTokens: 300
       }
     };
 
-    // Log request details for debugging
-    console.log('🌐 Sending request to Gemini API...');
-    console.log('📝 Request payload structure:', {
-      ...payload,
-      contents: [{
-        ...payload.contents[0],
-        parts: [
-          payload.contents[0].parts[0],
-          { ...payload.contents[0].parts[1], inline_data: { ...payload.contents[0].parts[1].inline_data, data: '[REDACTED]' } }
-        ]
-      }]
-    });
-
-    // Call the Gemini API
-    let result;
     try {
       // Make sure API key is appended to URL
       const apiUrl = `${GEMINI_API_URL}?key=${API_KEY}`;
-      console.log('Using API URL:', apiUrl.replace(API_KEY, 'REDACTED'));
-
+      
       const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
@@ -277,151 +214,113 @@ Return ONLY a JSON object:
         body: JSON.stringify(payload)
       });
 
-      console.log(`🔄 Gemini API response status: ${response.status} ${response.statusText}`);
-
       if (!response.ok) {
         // Get error details from response
         const errorText = await response.text();
-        console.error('Gemini API Error details:', errorText);
-        throw new Error(`Gemini API returned status ${response.status}: ${response.statusText}`);
+        throw new Error(`API request failed with status ${response.status}`);
       }
 
-      result = await response.json();
-      console.log('✅ Successfully received Gemini API response data');
+      const data = await response.json();
 
-      // Check if we got a proper response structure
-      if (!result.candidates || !result.candidates.length) {
-        console.error('❌ Unexpected Gemini API response format:', JSON.stringify(result).substring(0, 300));
-        throw new Error('Invalid response format from Gemini API');
+      // Extract parts from the response
+      if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
+        throw new Error('Invalid API response format');
       }
 
-      // Log the API response for debugging
-      console.log('✅ Gemini API received and processed screenshot');
-      console.log(`🖼️ Screenshot from: ${url} (${title})`);
+      // Extract the analysis from the response
+      let analysis = {};
+      const responseContent = data.candidates[0].content.parts[0].text;
 
-      // Always log partial response for debugging
-      if (result.candidates && result.candidates[0] && result.candidates[0].content.parts[0].text) {
-        console.log('📊 Gemini response preview:');
-        console.log(result.candidates[0].content.parts[0].text.substring(0, 300) + '...');
+      // Try to extract JSON from the response
+      const jsonMatch = responseContent.match(/\{[\s\S]*?\}/);
+
+      if (jsonMatch) {
+        try {
+          analysis = JSON.parse(jsonMatch[0]);
+        } catch (jsonError) {
+          console.error('Error parsing JSON:', jsonError);
+          // Fallback to regex extraction
+          const scoreMatch = responseContent.match(/productivityScore"?\s*:\s*(\d+)/);
+          const messageMatch = responseContent.match(/message"?\s*:\s*"([^"]*)"/);
+
+          analysis = {
+            productivityScore: scoreMatch ? parseInt(scoreMatch[1]) : 50,
+            message: messageMatch ? messageMatch[1] : 'Consider refocusing on your tasks.'
+          };
+        }
       } else {
-        console.error('⚠️ Unexpected Gemini response structure:', JSON.stringify(result).substring(0, 300));
+        // Direct score extraction without JSON
+        console.log('No JSON found, trying manual extraction');
+        // Try different regex patterns
+        let scoreMatch = responseContent.match(/productivityScore"?\s*:\s*(\d+)/) ||
+          responseContent.match(/productivity\s*score\s*[=:]\s*(\d+)/i) ||
+          responseContent.match(/\b(\d{1,2}|100)\s*\/\s*100\b/) ||
+          responseContent.match(/\bscore\s*:\s*(\d+)\b/i);
+
+        let messageMatch = responseContent.match(/message"?\s*:\s*"([^"]*)"/) ||
+          responseContent.match(/message[:\.]\s*(.+?)(?:\.|\n)/);
+
+        // If no clear score found, estimate from text sentiment
+        let score = 50; // Default score
+        if (scoreMatch && scoreMatch[1]) {
+          score = parseInt(scoreMatch[1]);
+        } else if (responseContent.toLowerCase().includes('unproductive') ||
+          responseContent.toLowerCase().includes('distract')) {
+          score = 30; // Likely unproductive
+        } else if (responseContent.toLowerCase().includes('productive') ||
+          responseContent.toLowerCase().includes('work')) {
+          score = 70; // Likely productive
+        }
+
+        analysis = {
+          productivityScore: score,
+          message: messageMatch ? messageMatch[1] : 'Consider checking your focus.'
+        };
       }
+
+      // Set a default productivity score if undefined
+      if (analysis.productivityScore === undefined) {
+        console.warn('Productivity score was undefined, using default of 50');
+        analysis.productivityScore = 50;
+      }
+
+      // Make sure the score is a number between 0-100
+      analysis.productivityScore = Math.max(-1, Math.min(100, parseInt(analysis.productivityScore) || 50));
+
+      // Determine if the behavior is unproductive based on threshold
+      const unproductive = analysis.productivityScore < threshold;
+
+      console.log(`📋 Analysis complete - Score: ${analysis.productivityScore}, Unproductive: ${unproductive}`);
+      if (unproductive) {
+        console.log(`📝 Feedback: "${analysis.message || 'Consider refocusing'}"`);
+      }
+
+      // Return the result to the extension with a confirmation flag
+      const result = {
+        productivityScore: analysis.productivityScore,
+        shouldNotify: analysis.shouldNotify || false,
+        reason: analysis.reason || '',
+        notificationMessage: analysis.notificationMessage || '',
+        suggestedBlockDuration: analysis.suggestedBlockDuration || 30
+      };
+
+      // Cache the result
+      if (responseCache.size >= CACHE_MAX_SIZE) {
+        // Remove oldest entry
+        const oldestKey = responseCache.keys().next().value;
+        responseCache.delete(oldestKey);
+      }
+      
+      responseCache.set(cacheKey, {
+        timestamp: Date.now(),
+        data: result
+      });
+
+      res.json(result);
     } catch (apiError) {
       console.error('❌ Gemini API Error:', apiError.message);
       throw apiError; // Re-throw to be caught by the outer try-catch
     }
-
-    // Extract the analysis from the response
-    let analysis = {};
-    console.log('🔍 Processing Gemini response...');
-
-    try {
-      if (result.candidates && result.candidates[0].content.parts[0].text) {
-        const responseText = result.candidates[0].content.parts[0].text;
-        console.log('Raw Gemini response:', responseText.substring(0, 300) + '...');
-
-        // Try to extract JSON from the response
-        const jsonMatch = responseText.match(/\{[\s\S]*?\}/);
-
-        if (jsonMatch) {
-          try {
-            analysis = JSON.parse(jsonMatch[0]);
-            console.log('Successfully parsed JSON response:', analysis);
-
-            // Validate and fix the notification message if needed
-            if (analysis.shouldNotify && analysis.notificationMessage) {
-              // Extract time mentioned in message (if any)
-              const messageTimeMatch = analysis.notificationMessage.match(/(\d+)\s*minutes?/i);
-              if (messageTimeMatch && parseInt(messageTimeMatch[1]) !== timeSpent) {
-                // Replace incorrect time with actual time spent
-                analysis.notificationMessage = analysis.notificationMessage.replace(
-                  /\d+\s*minutes?/i,
-                  `${timeSpent} minute${timeSpent === 1 ? '' : 's'}`
-                );
-                console.log('Fixed time in notification message:', analysis.notificationMessage);
-              }
-            }
-          } catch (jsonError) {
-            console.error('Error parsing JSON:', jsonError);
-            // Fallback to regex extraction
-            const scoreMatch = responseText.match(/productivityScore"?\s*:\s*(\d+)/);
-            const messageMatch = responseText.match(/message"?\s*:\s*"([^"]*)"/);
-
-            analysis = {
-              productivityScore: scoreMatch ? parseInt(scoreMatch[1]) : 50,
-              message: messageMatch ? messageMatch[1] : 'Consider refocusing on your tasks.'
-            };
-            console.log('Extracted via regex:', analysis);
-          }
-        } else {
-          // Direct score extraction without JSON
-          console.log('No JSON found, trying manual extraction');
-          // Try different regex patterns
-          let scoreMatch = responseText.match(/productivityScore"?\s*:\s*(\d+)/) ||
-            responseText.match(/productivity\s*score\s*[=:]\s*(\d+)/i) ||
-            responseText.match(/\b(\d{1,2}|100)\s*\/\s*100\b/) ||
-            responseText.match(/\bscore\s*:\s*(\d+)\b/i);
-
-          let messageMatch = responseText.match(/message"?\s*:\s*"([^"]*)"/) ||
-            responseText.match(/message[:\.]\s*(.+?)(?:\.|\n)/);
-
-          // If no clear score found, estimate from text sentiment
-          let score = 50; // Default score
-          if (scoreMatch && scoreMatch[1]) {
-            score = parseInt(scoreMatch[1]);
-          } else if (responseText.toLowerCase().includes('unproductive') ||
-            responseText.toLowerCase().includes('distract')) {
-            score = 30; // Likely unproductive
-          } else if (responseText.toLowerCase().includes('productive') ||
-            responseText.toLowerCase().includes('work')) {
-            score = 70; // Likely productive
-          }
-
-          analysis = {
-            productivityScore: score,
-            message: messageMatch ? messageMatch[1] : 'Consider checking your focus.'
-          };
-          console.log('Manually extracted:', analysis);
-        }
-      }
-    } catch (error) {
-      console.error('Error parsing Gemini response:', error);
-      // Provide default analysis
-      analysis = {
-        productivityScore: 50,
-        message: 'Consider checking your current focus and priorities.'
-      };
-    }
-
-    // Set a default productivity score if undefined
-    if (analysis.productivityScore === undefined) {
-      console.warn('Productivity score was undefined, using default of 50');
-      analysis.productivityScore = 50;
-    }
-
-    // Make sure the score is a number between 0-100
-    analysis.productivityScore = Math.max(-1, Math.min(100, parseInt(analysis.productivityScore) || 50));
-
-    // Determine if the behavior is unproductive based on threshold
-    const unproductive = analysis.productivityScore < threshold;
-
-    console.log(`📋 Analysis complete - Score: ${analysis.productivityScore}, Unproductive: ${unproductive}`);
-    if (unproductive) {
-      console.log(`📝 Feedback: "${analysis.message || 'Consider refocusing'}"`);
-    }
-
-    // Return the result to the extension with a confirmation flag
-    return res.json({
-      unproductive: analysis.productivityScore < threshold,
-      productivityScore: analysis.productivityScore,
-      shouldNotify: analysis.shouldNotify || false,
-      notificationMessage: analysis.notificationMessage || '',
-      suggestedBlockDuration: analysis.suggestedBlockDuration || 30,
-      reason: analysis.reason || '',
-      timeSpent,
-      processed: true,
-      timestamp: new Date().toISOString()
-    });
   } catch (error) {
     console.error('❌ Error analyzing image:', error.message);
     console.error('Error details:', error.stack || error);

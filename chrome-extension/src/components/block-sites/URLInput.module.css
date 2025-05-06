@@ -1,5 +1,5 @@
 .container {
-  margin-bottom: 15px;
+  margin-bottom: 8px;
 }
 
 .label {
@@ -10,17 +10,28 @@
 
 .form {
   display: flex;
-  gap: 10px;
   width: 100%;
+}
+
+.inputContainer {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 16px;
+  padding-left: 16px;
+  overflow: hidden;
+  transition: all 0.2s ease;
 }
 
 .input {
   flex: 1;
-  padding: 8px;
-  border-radius: 4px;
-  border: 1px solid var(--color-border-light);
-  background-color: var(--color-bg-secondary);
-  color: var(--color-text-primary);
+  padding: 12px 8px 12px 0;
+  border: none;
+  background: transparent;
+  color: var(--color-text-light);
+  font-size: 0.9rem;
 }
 
 .input::placeholder {
@@ -29,27 +40,32 @@
 
 .input:focus {
   outline: none;
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 2px var(--color-primary-light);
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.inputContainer:focus-within {
+  border: 2px solid #4F46E5;
+  box-shadow: 0 0 0 1px rgba(79, 70, 229, 0.2);
 }
 
 .button {
-  width: 32px;
-  height: 32px;
+  min-width: 46px;
+  height: 46px;
   padding: 0;
-  background: none;
+  background: rgba(79, 70, 229, 0.3);
   border: none;
-  border-radius: 50%;
+  border-radius: 0;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s;
-  color: var(--color-primary);
+  transition: all 0.3s;
+  color: white;
 }
 
 .button:hover {
-  background: var(--color-hover);
+  background: rgba(79, 70, 229, 0.5);
 }
 
 .button svg {

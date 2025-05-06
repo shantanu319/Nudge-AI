@@ -1,4 +1,4 @@
-import * as feather from 'feather-icons';
+import Icon from '../icons/Icon';
 import React from 'react';
 import styles from './BlockList.module.css';
 
@@ -19,8 +19,9 @@ export default function BlockList({ blockList, onRemoveUrl }) {
                         <button
                             className={styles.removeButton}
                             onClick={() => onRemoveUrl(url)}
-                            dangerouslySetInnerHTML={{ __html: feather.icons.x.toSvg() }}
-                        />
+                        >
+                            <Icon name="x" />
+                        </button>
                         <span className={styles.url}>{url}</span>
                     </li>
                 ))}

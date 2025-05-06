@@ -1,11 +1,12 @@
-import * as feather from 'feather-icons';
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { usePopup } from '../../hooks/usePopup';
 import Block from '../block-sites/Block';
 import DomainUsage from '../focus/DomainUsage';
 import Settings from '../settings/Settings';
 import TaskParasite from '../tasks/TaskParasite';
+import Icon from '../icons/Icon';
 import styles from './Popup.module.css';
+
 
 export default function Popup() {
     const {
@@ -19,16 +20,7 @@ export default function Popup() {
 
     const [activeTab, setActiveTab] = useState('tasks');
     const [showSettings, setShowSettings] = useState(false);
-
-    useEffect(() => {
-        feather.replace();
-    }, [activeTab, showSettings]);
-
-    const getIcon = (name) => {
-        const icon = feather.icons[name];
-        return icon ? icon.toSvg() : '';
-    };
-
+    
     return (
         <div className={styles.container}>
             {showSettings ? (
@@ -38,69 +30,71 @@ export default function Popup() {
                     onClose={() => setShowSettings(false)}
                 />
             ) : (
-                <div className={styles.card}>
+                <div className={styles.glassCard}>
                     <div className={styles.header}>
                         <div className={styles.titleContainer}>
                             <h1 className={styles.title}>Nudge</h1>
                             <div className={styles.statusContainer}>
                                 <span className={`${styles.status} ${!isActive ? styles.inactive : ''}`}>
-                                    {isActive ? 'Active' : 'Paused'}
+                                    {isActive ? 'Enabled' : 'Disabled'}
                                 </span>
                             </div>
                         </div>
                         <div className={styles.controls}>
                             <button
-                                className={`${styles.toggleButton} ${isActive ? styles.active : ''}`}
+                                className={`${styles.glassButton} ${isActive ? styles.active : ''}`}
                                 onClick={toggleActive}
-                                dangerouslySetInnerHTML={{ __html: isActive ? getIcon('pause') : getIcon('play') }}
-                            />
+                            >
+                                {isActive ? <Icon name="pause" /> : <Icon name="play" />}
+                            </button>
                             <button
-                                className={styles.settingsButton}
+                                className={styles.glassButton}
                                 onClick={() => setShowSettings(true)}
-                                dangerouslySetInnerHTML={{ __html: getIcon('settings') }}
-                            />
+                            >
+                                <Icon name="settings" />
+                            </button>
                         </div>
                     </div>
 
-                    <div className={styles.tabs}>
+                    <div className={styles.glassTabs}>
                         <button
-                            className={`${styles.tab} ${activeTab === 'tasks' ? styles.active : ''}`}
+                            className={`${styles.glassTab} ${activeTab === 'tasks' ? styles.active : ''}`}
                             onClick={() => setActiveTab('tasks')}
                         >
-                            <span dangerouslySetInnerHTML={{ __html: getIcon('check') }} />
+                            <span><Icon name="check" /></span>
                             <span>Tasks</span>
                         </button>
                         <button
-                            className={`${styles.tab} ${activeTab === 'focus' ? styles.active : ''}`}
+                            className={`${styles.glassTab} ${activeTab === 'focus' ? styles.active : ''}`}
                             onClick={() => setActiveTab('focus')}
                         >
-                            <span dangerouslySetInnerHTML={{ __html: getIcon('lock') }} />
+                            <span><Icon name="shield" /></span>
                             <span>Block</span>
                         </button>
                         <button
-                            className={`${styles.tab} ${activeTab === 'analytics' ? styles.active : ''}`}
+                            className={`${styles.glassTab} ${activeTab === 'analytics' ? styles.active : ''}`}
                             onClick={() => setActiveTab('analytics')}
                         >
-                            <span dangerouslySetInnerHTML={{ __html: getIcon('bar-chart-2') }} />
+                            <span><Icon name="list" /></span>
                             <span>Analytics</span>
                         </button>
                     </div>
 
                     <div className={styles.content}>
                         {activeTab === 'tasks' && (
-                            <div className={styles.section}>
+                            <div className={styles.glassSection}>
                                 <TaskParasite />
                             </div>
                         )}
 
                         {activeTab === 'focus' && (
-                            <div className={styles.section}>
+                            <div className={styles.glassSection}>
                                 <Block />
                             </div>
                         )}
 
                         {activeTab === 'analytics' && (
-                            <div className={styles.section}>
+                            <div className={styles.glassSection}>
                                 <DomainUsage domainUsage={domainUsage} />
                             </div>
                         )}
@@ -109,4 +103,4 @@ export default function Popup() {
             )}
         </div>
     );
-} 
+}
